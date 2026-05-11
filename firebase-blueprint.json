@@ -1,0 +1,32 @@
+{
+  "entities": {
+    "GlobalAlbum": {
+      "title": "GlobalAlbum",
+      "description": "Stores globally shared stickers",
+      "type": "object",
+      "properties": {
+        "ownedStickers": {
+          "type": "array",
+          "description": "List of sticker IDs (e.g. ARG-10)",
+          "items": { "type": "string" }
+        },
+        "repeatedStickers": {
+          "type": "array",
+          "description": "List of repeated sticker IDs (e.g. ARG-10)",
+          "items": { "type": "string" }
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["ownedStickers", "repeatedStickers", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "albums/global": {
+      "schema": { "$ref": "GlobalAlbum" },
+      "description": "Single global document tracking all owned stickers."
+    }
+  }
+}

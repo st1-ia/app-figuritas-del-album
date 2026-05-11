@@ -1,0 +1,8 @@
+{
+  "name": "Mundial Tracker AI",
+  "description": "Tu álbum digital de figuritas sincronizado en la nube con escáner inteligente.",
+  "requestFramePermissions": [
+    "camera"
+  ],
+  "majorCapabilities": []
+}

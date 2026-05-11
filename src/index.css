@@ -1,0 +1,14 @@
+@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Anton", sans-serif;
+  
+  --color-world-cup-dark: #000000;
+  --color-world-cup-neon: #00FF00;
+  --color-world-cup-pink: #FF00FF;
+  --color-world-cup-blue: #00FFFF;
+  --color-world-cup-red: #FF0000;
+  --color-coca-cola: #F40009;
+}
