@@ -24,21 +24,6 @@ function SettingsTab({ clearAlbum }: { clearAlbum: () => void }) {
               <p className="text-xs text-gray-400">Todos los dispositivos comparten la misma colección sin necesidad de iniciar sesión.</p>
             </div>
           </div>
-
-          <div className="p-4 bg-[#1a1a1a] rounded-lg border border-[#333]">
-            <h3 className="text-lg font-display uppercase text-red-500 mb-2">Peligro</h3>
-            <p className="text-xs text-gray-400 mb-4">Esta acción eliminará todas las figuritas guardadas en el álbum global. No se puede deshacer.</p>
-            <button 
-              onClick={() => {
-                if(window.confirm('¿Estás seguro de que deseas eliminar todas las figuritas del álbum y de las repetidas?')) {
-                  clearAlbum();
-                }
-              }}
-              className="w-full py-3 bg-red-600 hover:bg-red-700 text-white font-display uppercase tracking-widest text-sm rounded transition-colors"
-            >
-              Vaciar Álbum
-            </button>
-          </div>
         </div>
       </div>
     </div>
@@ -175,7 +160,7 @@ export default function App() {
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
             {activeTab === 'repeated' && <Repeated repeatedStickers={repeatedStickers} toggleRepeated={toggleRepeated} />}
             {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} />}
-            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} toggleRepeated={toggleRepeated} />}
+            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} toggleRepeated={toggleRepeated} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
           </>
         )}

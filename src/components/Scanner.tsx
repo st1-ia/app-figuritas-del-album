@@ -5,11 +5,12 @@ import { WORLD_CUP_TEAMS } from '../data/stickers';
 
 interface ScannerProps {
   ownedStickers: Set<string>;
+  repeatedStickers?: Set<string>;
   toggleOwned: (id: string, forceStatus?: boolean) => void;
   toggleRepeated?: (id: string, forceStatus?: boolean) => void;
 }
 
-export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: ScannerProps) {
+export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, toggleRepeated }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Tesseract.Worker | null>(null);
@@ -20,6 +21,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
   const [streamAction, setStreamAction] = useState<MediaStream | null>(null);
   
   const [addedToRepeated, setAddedToRepeated] = useState(false);
+  const [removedFromRepeated, setRemovedFromRepeated] = useState(false);
 
   // Manual mode state
   const [manualMode, setManualMode] = useState<boolean>(false);
@@ -242,9 +244,9 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
         
         console.log(`OCR: "${text}" | Confianza: ${conf}%`);
         
-        // Requiere una confianza decente y parseo estricto
-        if (text.length >= 2 && conf > 40) {
-           const { foundPrefix, num } = parseCodeString(text, true);
+        // Requiere menos confianza para ser más rápido y robusto
+        if (text.length >= 2 && conf > 25) {
+           const { foundPrefix, num } = parseCodeString(text, false);
 
            if (foundPrefix) {
              const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);          
@@ -256,6 +258,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                  });
                  setError(null);
                  setAddedToRepeated(false);
+                 setRemovedFromRepeated(false);
              }
            }
         }
@@ -277,7 +280,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
       }
       
       if (active) {
-        setTimeout(scanLoop, 1500);
+        setTimeout(scanLoop, 500);
       }
     };
     
@@ -300,10 +303,24 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
     if (result && toggleRepeated) {
       toggleRepeated(result.id, true);
       setAddedToRepeated(true);
+      setRemovedFromRepeated(false);
+    }
+  };
+
+  const handleRemoveFromRepeated = () => {
+    if (result && toggleRepeated) {
+      toggleRepeated(result.id, false);
+      setRemovedFromRepeated(true);
+      setAddedToRepeated(false);
     }
   };
 
   const isAlreadyOwned = result ? ownedStickers.has(result.id) : false;
+  const isAlreadyRepeated = result && repeatedStickers ? repeatedStickers.has(result.id) : false;
+  
+  // Decide whether to show "Add" or "Remove" for repeated
+  // Si ya está repetida por DB o el usuario la acaba de agregar y no la acaba de quitar
+  const showAsRepeated = (isAlreadyRepeated && !removedFromRepeated) || addedToRepeated;
 
   return (
     <div className="w-full max-w-lg mx-auto p-4 pb-24">
@@ -447,7 +464,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                         </button>
                      )}
                      
-                     {isAlreadyOwned && toggleRepeated && !addedToRepeated && (
+                     {isAlreadyOwned && toggleRepeated && !showAsRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -456,10 +473,13 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                         </button>
                      )}
 
-                     {isAlreadyOwned && addedToRepeated && (
-                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                             <Check size={20} /> Agregada a repetidas
-                         </div>
+                     {isAlreadyOwned && toggleRepeated && showAsRepeated && (
+                        <button
+                           onClick={handleRemoveFromRepeated}
+                           className="w-full flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                        >
+                           <RefreshCw size={20} strokeWidth={2.5} /> Sacar de Repetidas
+                        </button>
                      )}
 
                      <button
@@ -468,6 +488,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                            setError(null);
                            isScanningRef.current = false;
                            setAddedToRepeated(false);
+                           setRemovedFromRepeated(false);
                         }}
                         className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors flex-1 bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
                      >
@@ -545,7 +566,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                       </button>
                     )}
                     
-                    {isAlreadyOwned && toggleRepeated && !addedToRepeated && (
+                    {isAlreadyOwned && toggleRepeated && !showAsRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -554,10 +575,13 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                         </button>
                      )}
 
-                     {isAlreadyOwned && addedToRepeated && (
-                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                             <Check size={20} /> Agregada a repetidas
-                         </div>
+                     {isAlreadyOwned && toggleRepeated && showAsRepeated && (
+                        <button
+                           onClick={handleRemoveFromRepeated}
+                           className="w-full flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                        >
+                           <RefreshCw size={20} strokeWidth={2.5} /> Sacar de Repetidas
+                        </button>
                      )}
 
                     <button
@@ -565,6 +589,7 @@ export default function Scanner({ ownedStickers, toggleOwned, toggleRepeated }: 
                         setResult(null);
                         setError(null);
                         setAddedToRepeated(false);
+                        setRemovedFromRepeated(false);
                       }}
                       className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
                     >
