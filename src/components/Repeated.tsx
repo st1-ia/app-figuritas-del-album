@@ -1,23 +1,23 @@
 import React, { useState, useMemo } from 'react';
 import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
-import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, Plus, Minus } from 'lucide-react';
 
 interface RepeatedProps {
-  repeatedStickers: Set<string>;
-  toggleRepeated: (id: string) => void;
+  repeatedStickers: Record<string, number>;
+  updateRepeated: (id: string, delta: number) => void;
 }
 
-export default function Repeated({ repeatedStickers, toggleRepeated }: RepeatedProps) {
+export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedProps) {
   const [expandedTeam, setExpandedTeam] = useState<string | null>(WORLD_CUP_TEAMS[0].id);
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   
+  const totalRepeated = Object.values(repeatedStickers).reduce((acc, count) => acc + count, 0);
+  
   const getTeamRepeatedCount = (prefix: string, count: number) => {
     let repeatedCount = 0;
     for (let i = 1; i <= count; i++) {
-        if (repeatedStickers.has(`${prefix}-${i}`)) {
-            repeatedCount++;
-        }
+        repeatedCount += (repeatedStickers[`${prefix}-${i}`] || 0);
     }
     return repeatedCount;
   };
@@ -25,10 +25,12 @@ export default function Repeated({ repeatedStickers, toggleRepeated }: RepeatedP
   const copyRepeatedStickers = async () => {
     let repeated: string[] = [];
     WORLD_CUP_TEAMS.forEach(team => {
-        const teamRepeated: number[] = [];
+        const teamRepeated: string[] = [];
         for (let i = 1; i <= team.count; i++) {
-            if (repeatedStickers.has(`${team.prefix}-${i}`)) {
-                teamRepeated.push(i);
+            const stickerId = `${team.prefix}-${i}`;
+            const count = repeatedStickers[stickerId] || 0;
+            if (count > 0) {
+                teamRepeated.push(count > 1 ? `${i} (x${count})` : `${i}`);
             }
         }
         if (teamRepeated.length > 0) {
@@ -75,7 +77,7 @@ export default function Repeated({ repeatedStickers, toggleRepeated }: RepeatedP
             </button>
           </div>
           <div className="text-right">
-            <span className="text-3xl font-display text-[#00FF00] block leading-none">{repeatedStickers.size}</span>
+            <span className="text-3xl font-display text-[#00FF00] block leading-none">{totalRepeated}</span>
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">En total</span>
           </div>
         </div>
@@ -147,30 +149,48 @@ export default function Repeated({ repeatedStickers, toggleRepeated }: RepeatedP
                   {Array.from({ length: team.count }).map((_, idx) => {
                     const number = idx + 1;
                     const stickerId = `${team.prefix}-${number}`;
-                    const isRepeated = repeatedStickers.has(stickerId);
+                    const count = repeatedStickers[stickerId] || 0;
+                    const isRepeated = count > 0;
                     
                     const stickerColorClass = isCC ? 'from-[#F40009]/20 to-[#F40009]/5 border-[#F40009]' : 'from-[#00FF00]/20 to-[#00FF00]/5 border-[#00FF00]';
                     const checkColorClass = isCC ? 'bg-[#F40009] text-white' : 'bg-[#00FF00] text-black';
 
                     return (
-                      <button
+                      <div
                         key={stickerId}
-                        onClick={() => toggleRepeated(stickerId)}
                         className={`
                           relative flex flex-col items-center justify-center p-2 rounded-lg py-4 border-2 transition-all duration-200 uppercase tracking-wider overflow-hidden
                           ${isRepeated 
                             ? `bg-gradient-to-b ${stickerColorClass} scale-105 shadow-[0_0_15px_rgba(0,255,0,0.15)]` 
-                            : 'bg-[#111] border-[#333] text-gray-600 hover:border-[#555] hover:text-gray-400'}
+                            : 'bg-[#111] border-[#333] text-gray-600 hover:border-[#555] hover:text-gray-400 cursor-pointer'}
                         `}
+                        onClick={!isRepeated ? () => updateRepeated(stickerId, 1) : undefined}
                       >
                         <span className={`text-[9px] font-bold ${isRepeated ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : ''}`}>{team.prefix}</span>
                         <span className={`text-xl font-display mt-0.5 ${isRepeated ? 'text-white' : ''}`}>{number}</span>
+                        
                         {isRepeated && (
-                          <div className={`absolute top-0 right-0 w-6 h-6 flex items-center justify-center rounded-bl-lg ${checkColorClass}`}>
-                            <span className="font-display font-bold text-xs">x1</span>
-                          </div>
+                          <>
+                            <div className={`absolute top-0 right-0 px-2 py-0.5 flex items-center justify-center rounded-bl-lg ${checkColorClass}`}>
+                              <span className="font-display font-bold text-xs">x{count}</span>
+                            </div>
+                            <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-2 mt-2">
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); updateRepeated(stickerId, -1); }}
+                                className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+                              >
+                                <Minus size={12} strokeWidth={3} />
+                              </button>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); updateRepeated(stickerId, 1); }}
+                                className="w-6 h-6 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/90 transition-colors"
+                              >
+                                <Plus size={12} strokeWidth={3} />
+                              </button>
+                            </div>
+                          </>
                         )}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>

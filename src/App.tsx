@@ -30,11 +30,29 @@ function SettingsTab({ clearAlbum }: { clearAlbum: () => void }) {
   );
 }
 
+const serializeRepeated = (record: Record<string, number>): string[] => {
+  const result: string[] = [];
+  for (const [id, count] of Object.entries(record)) {
+    for (let i = 0; i < count; i++) {
+        result.push(id);
+    }
+  }
+  return result;
+};
+
+const deserializeRepeated = (list: string[]): Record<string, number> => {
+   const record: Record<string, number> = {};
+   for (const id of list) {
+       record[id] = (record[id] || 0) + 1;
+   }
+   return record;
+};
+
 export default function App() {
   const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'settings'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
-  const [repeatedStickers, setRepeatedStickers] = useState<Set<string>>(new Set());
+  const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
 
   // Listen to Firestore for global album
   useEffect(() => {
@@ -48,11 +66,11 @@ export default function App() {
           setOwnedStickers(new Set(data.ownedStickers));
         }
         if (data.repeatedStickers && Array.isArray(data.repeatedStickers)) {
-          setRepeatedStickers(new Set(data.repeatedStickers));
+          setRepeatedStickers(deserializeRepeated(data.repeatedStickers));
         }
       } else {
         setOwnedStickers(new Set());
-        setRepeatedStickers(new Set());
+        setRepeatedStickers({});
       }
       setIsLoaded(true);
     }, (error) => {
@@ -68,12 +86,12 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const persistToDB = async (newOwned: Set<string>, newRepeated: Set<string>) => {
+  const persistToDB = async (newOwned: Set<string>, newRepeated: Record<string, number>) => {
     try {
       const docRef = doc(db, 'albums', 'global');
       await setDoc(docRef, {
         ownedStickers: Array.from(newOwned),
-        repeatedStickers: Array.from(newRepeated),
+        repeatedStickers: serializeRepeated(newRepeated),
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
@@ -83,7 +101,7 @@ export default function App() {
 
   const clearAlbum = async () => {
     const emptyOwned = new Set<string>();
-    const emptyRepeated = new Set<string>();
+    const emptyRepeated: Record<string, number> = {};
     setOwnedStickers(emptyOwned);
     setRepeatedStickers(emptyRepeated);
     await persistToDB(emptyOwned, emptyRepeated);
@@ -102,34 +120,35 @@ export default function App() {
     await persistToDB(nextOwned, repeatedStickers);
   };
 
-  const toggleRepeated = async (id: string, forceStatus?: boolean) => {
-    let nextRepeated = new Set<string>(repeatedStickers);
-    if (forceStatus !== undefined) {
-      if (forceStatus) nextRepeated.add(id);
-      else nextRepeated.delete(id);
+  const updateRepeated = async (id: string, delta: number) => {
+    let nextRepeated = { ...repeatedStickers };
+    const current = nextRepeated[id] || 0;
+    const newCount = current + delta;
+    
+    if (newCount <= 0) {
+      delete nextRepeated[id];
     } else {
-      if (nextRepeated.has(id)) nextRepeated.delete(id);
-      else nextRepeated.add(id);
+      nextRepeated[id] = newCount;
     }
+    
     setRepeatedStickers(nextRepeated);
     await persistToDB(ownedStickers, nextRepeated);
   };
 
   const executeExchange = async (givenId: string, receivedId: string) => {
     let nextOwned = new Set<string>(ownedStickers);
-    let nextRepeated = new Set<string>(repeatedStickers);
+    let nextRepeated = { ...repeatedStickers };
 
-    // Damos una repetida (se resta de repetidas) o si no la tenemos en repetidas pero estaba ahí, la sacamos.
-    if (nextRepeated.has(givenId)) {
-      nextRepeated.delete(givenId);
+    if (nextRepeated[givenId] > 0) {
+      nextRepeated[givenId] -= 1;
+      if (nextRepeated[givenId] === 0) {
+        delete nextRepeated[givenId];
+      }
     }
 
-    // Nos dan una figurita
     if (nextOwned.has(receivedId)) {
-      // Si ya la teníamos, va a repetidas
-      nextRepeated.add(receivedId);
+      nextRepeated[receivedId] = (nextRepeated[receivedId] || 0) + 1;
     } else {
-      // Si no la teníamos, va al álbum
       nextOwned.add(receivedId);
     }
 
@@ -158,9 +177,9 @@ export default function App() {
         ) : (
           <>
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
-            {activeTab === 'repeated' && <Repeated repeatedStickers={repeatedStickers} toggleRepeated={toggleRepeated} />}
+            {activeTab === 'repeated' && <Repeated repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} />}
-            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} toggleRepeated={toggleRepeated} />}
+            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
           </>
         )}

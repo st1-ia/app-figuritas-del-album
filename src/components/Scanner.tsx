@@ -5,12 +5,12 @@ import { WORLD_CUP_TEAMS } from '../data/stickers';
 
 interface ScannerProps {
   ownedStickers: Set<string>;
-  repeatedStickers?: Set<string>;
+  repeatedStickers?: Record<string, number>;
   toggleOwned: (id: string, forceStatus?: boolean) => void;
-  toggleRepeated?: (id: string, forceStatus?: boolean) => void;
+  updateRepeated?: (id: string, delta: number) => void;
 }
 
-export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, toggleRepeated }: ScannerProps) {
+export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Tesseract.Worker | null>(null);
@@ -300,27 +300,30 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   };
 
   const handleMarkAsRepeated = () => {
-    if (result && toggleRepeated) {
-      toggleRepeated(result.id, true);
+    if (result && updateRepeated) {
+      updateRepeated(result.id, 1);
       setAddedToRepeated(true);
       setRemovedFromRepeated(false);
     }
   };
 
   const handleRemoveFromRepeated = () => {
-    if (result && toggleRepeated) {
-      toggleRepeated(result.id, false);
+    if (result && updateRepeated) {
+      updateRepeated(result.id, -1);
       setRemovedFromRepeated(true);
       setAddedToRepeated(false);
     }
   };
 
   const isAlreadyOwned = result ? ownedStickers.has(result.id) : false;
-  const isAlreadyRepeated = result && repeatedStickers ? repeatedStickers.has(result.id) : false;
+  const rawRepeatedCount = result && repeatedStickers ? (repeatedStickers[result.id] || 0) : 0;
   
-  // Decide whether to show "Add" or "Remove" for repeated
-  // Si ya está repetida por DB o el usuario la acaba de agregar y no la acaba de quitar
-  const showAsRepeated = (isAlreadyRepeated && !removedFromRepeated) || addedToRepeated;
+  // Calculate local effective repeat count considering local recent actions.
+  // Actually, since Scanner re-renders when `repeatedStickers` updates, we can just use `rawRepeatedCount`.
+  // Wait, if it updates fast enough, `rawRepeatedCount` is fine.
+  // BUT because state in parent updates and syncs to DB, it might be safer to just rely on `rawRepeatedCount`.
+  // Let's use `rawRepeatedCount` directly!
+  const currentRepeatedCount = rawRepeatedCount;
 
   return (
     <div className="w-full max-w-lg mx-auto p-4 pb-24">
@@ -464,7 +467,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
                      
-                     {isAlreadyOwned && toggleRepeated && !showAsRepeated && (
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -473,13 +476,21 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && toggleRepeated && showAsRepeated && (
-                        <button
-                           onClick={handleRemoveFromRepeated}
-                           className="w-full flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
-                        >
-                           <RefreshCw size={20} strokeWidth={2.5} /> Sacar de Repetidas
-                        </button>
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && (
+                        <div className="flex gap-2 w-full">
+                           <button
+                              onClick={handleRemoveFromRepeated}
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                           >
+                              <RefreshCw size={20} strokeWidth={2.5} /> Sacar (-1)
+                           </button>
+                           <button
+                              onClick={handleMarkAsRepeated}
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                           >
+                              <CopyPlus size={20} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
+                           </button>
+                        </div>
                      )}
 
                      <button
@@ -566,7 +577,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                       </button>
                     )}
                     
-                    {isAlreadyOwned && toggleRepeated && !showAsRepeated && (
+                    {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -575,13 +586,21 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && toggleRepeated && showAsRepeated && (
-                        <button
-                           onClick={handleRemoveFromRepeated}
-                           className="w-full flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
-                        >
-                           <RefreshCw size={20} strokeWidth={2.5} /> Sacar de Repetidas
-                        </button>
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && (
+                        <div className="flex gap-2 w-full">
+                           <button
+                              onClick={handleRemoveFromRepeated}
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                           >
+                              <RefreshCw size={20} strokeWidth={2.5} /> Sacar (-1)
+                           </button>
+                           <button
+                              onClick={handleMarkAsRepeated}
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                           >
+                              <CopyPlus size={20} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
+                           </button>
+                        </div>
                      )}
 
                     <button
