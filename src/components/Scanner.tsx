@@ -22,6 +22,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   
   const [addedToRepeated, setAddedToRepeated] = useState(false);
   const [removedFromRepeated, setRemovedFromRepeated] = useState(false);
+  const [addedToAlbum, setAddedToAlbum] = useState(false);
 
   // Manual mode state
   const [manualMode, setManualMode] = useState<boolean>(false);
@@ -187,6 +188,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         setManualInput('');
         setAddedToRepeated(false);
         setRemovedFromRepeated(false);
+        setAddedToAlbum(false);
         return;
     } else if (foundPrefix) {
       const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
@@ -201,6 +203,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         setManualInput('');
         setAddedToRepeated(false);
         setRemovedFromRepeated(false);
+        setAddedToAlbum(false);
         return;
       } else if (validTeam) {
         setError(`El número debe estar entre ${start} y ${validTeam.count}`);
@@ -274,6 +277,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                setError(null);
                setAddedToRepeated(false);
                setRemovedFromRepeated(false);
+               setAddedToAlbum(false);
            } else if (foundPrefix) {
              const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);          
 
@@ -286,6 +290,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                  setError(null);
                  setAddedToRepeated(false);
                  setRemovedFromRepeated(false);
+                 setAddedToAlbum(false);
              }
            }
         }
@@ -323,6 +328,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   const handleMarkAsOwned = () => {
     if (result) {
       toggleOwned(result.id, true);
+      setAddedToAlbum(true);
     }
   };
 
@@ -494,7 +500,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
                      
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && (
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -503,7 +509,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && (
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && (
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
@@ -527,6 +533,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                            isScanningRef.current = false;
                            setAddedToRepeated(false);
                            setRemovedFromRepeated(false);
+                           setAddedToAlbum(false);
                         }}
                         className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors flex-1 bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
                      >
@@ -604,7 +611,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                       </button>
                     )}
                     
-                    {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && (
+                    {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -613,7 +620,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && (
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && (
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
@@ -636,6 +643,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         setError(null);
                         setAddedToRepeated(false);
                         setRemovedFromRepeated(false);
+                        setAddedToAlbum(false);
                       }}
                       className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
                     >
