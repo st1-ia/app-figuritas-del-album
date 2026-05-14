@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
 import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2 } from 'lucide-react';
 
 interface AlbumProps {
@@ -13,13 +13,20 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
   const [copied, setCopied] = useState(false);
   
   const stickers = getAllStickers();
+  const stickersByTeam = useMemo(() => {
+    const map = new Map<string, StickerDef[]>();
+    for (const s of stickers) {
+      if (!map.has(s.teamId)) map.set(s.teamId, []);
+      map.get(s.teamId)!.push(s);
+    }
+    return map;
+  }, [stickers]);
 
-  const getTeamProgress = (prefix: string, count: number) => {
+  const getTeamProgress = (teamId: string) => {
+    const teamStickers = stickersByTeam.get(teamId) || [];
     let ownedCount = 0;
-    for (let i = 1; i <= count; i++) {
-        if (ownedStickers.has(`${prefix}-${i}`)) {
-            ownedCount++;
-        }
+    for (const s of teamStickers) {
+      if (ownedStickers.has(s.id)) ownedCount++;
     }
     return ownedCount;
   };
@@ -27,10 +34,11 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
   const copyMissingStickers = async () => {
     let missing: string[] = [];
     WORLD_CUP_TEAMS.forEach(team => {
-        const teamMissing: number[] = [];
-        for (let i = 1; i <= team.count; i++) {
-            if (!ownedStickers.has(`${team.prefix}-${i}`)) {
-                teamMissing.push(i);
+        const teamMissing: string[] = [];
+        const teamStickers = stickersByTeam.get(team.id) || [];
+        for (const s of teamStickers) {
+            if (!ownedStickers.has(s.id)) {
+                teamMissing.push(s.number === 0 ? '00' : s.number.toString());
             }
         }
         if (teamMissing.length > 0) {
@@ -119,8 +127,9 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
         
         {filteredTeams.map((team) => {
           const isExpanded = expandedTeam === team.id;
-          const ownedInTeam = getTeamProgress(team.prefix, team.count);
-          const isComplete = ownedInTeam === team.count;
+          const teamStickers = stickersByTeam.get(team.id) || [];
+          const ownedInTeam = getTeamProgress(team.id);
+          const isComplete = ownedInTeam === teamStickers.length;
           const isCC = team.prefix === 'CC'; // Coca cola uses red
           const accentColor = isCC ? 'text-[#F40009]' : 'text-[#00FF00]';
           const bgAccentLight = isCC ? 'bg-[#F40009]/20' : 'bg-[#00FF00]/20';
@@ -144,7 +153,7 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
                      <span className={`text-xl font-display leading-none ${isComplete ? accentColor : 'text-white'}`}>
                        {ownedInTeam}
                      </span>
-                     <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">de {team.count}</span>
+                     <span className="text-[10px] uppercase tracking-wider text-gray-500 font-bold">de {teamStickers.length}</span>
                   </div>
                   {isExpanded ? <ChevronDown size={24} className="text-gray-500" /> : <ChevronRight size={24} className="text-gray-500" />}
                 </div>
@@ -152,9 +161,9 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
 
               {isExpanded && (
                 <div className="p-5 bg-black border-t border-[#222] grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
-                  {Array.from({ length: team.count }).map((_, idx) => {
-                    const number = idx + 1;
-                    const stickerId = `${team.prefix}-${number}`;
+                  {teamStickers.map((sticker) => {
+                    const number = sticker.number === 0 ? '00' : sticker.number;
+                    const stickerId = sticker.id;
                     const isOwned = ownedStickers.has(stickerId);
                     
                     const stickerColorClass = isCC ? 'from-[#F40009]/20 to-[#F40009]/5 border-[#F40009]' : 'from-[#00FF00]/20 to-[#00FF00]/5 border-[#00FF00]';
@@ -171,7 +180,7 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
                             : 'bg-[#111] border-[#333] text-gray-600 hover:border-[#555] hover:text-gray-400'}
                         `}
                       >
-                        <span className={`text-[9px] font-bold ${isOwned ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : ''}`}>{team.prefix}</span>
+                        <span className={`text-[9px] font-bold ${isOwned ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : ''}`}>{sticker.prefix}</span>
                         <span className={`text-xl font-display mt-0.5 ${isOwned ? 'text-white' : ''}`}>{number}</span>
                         {isOwned && (
                           <div className={`absolute top-0 right-0 w-6 h-6 flex items-center justify-center rounded-bl-lg ${checkColorClass}`}>

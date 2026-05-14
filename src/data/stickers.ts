@@ -1,5 +1,13 @@
-export const WORLD_CUP_TEAMS = [
-  { id: 'fwc', name: 'Especiales / FIFA', prefix: 'FWC', count: 20 },
+export interface TeamDef {
+  id: string;
+  name: string;
+  prefix: string;
+  count: number;
+  startNumber?: number;
+}
+
+export const WORLD_CUP_TEAMS: TeamDef[] = [
+  { id: 'fwc', name: 'Especiales / FIFA', prefix: 'FWC', count: 19, startNumber: 0 },
   // Group A
   { id: 'mex', name: 'Mexico', prefix: 'MEX', count: 20 },
   { id: 'rsa', name: 'South Africa', prefix: 'RSA', count: 20 },
@@ -75,12 +83,14 @@ export interface StickerDef {
 export const getAllStickers = (): StickerDef[] => {
   const stickers: StickerDef[] = [];
   WORLD_CUP_TEAMS.forEach(team => {
-    for (let i = 1; i <= team.count; i++) {
+    const start = team.startNumber ?? 1;
+    for (let i = start; i <= team.count; i++) {
+      const isZeroZero = i === 0 && team.prefix === 'FWC';
       stickers.push({
-        id: `${team.prefix}-${i}`,
-        prefix: team.prefix,
+        id: isZeroZero ? '00' : `${team.prefix}-${i}`,
+        prefix: isZeroZero ? '00' : team.prefix,
         number: i,
-        displayName: `${team.prefix} ${i}`,
+        displayName: isZeroZero ? '00' : `${team.prefix} ${i}`,
         teamId: team.id
       });
     }

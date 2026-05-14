@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
 import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, Plus, Minus } from 'lucide-react';
 
 interface RepeatedProps {
@@ -12,12 +12,23 @@ export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedP
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
   
+  const stickers = getAllStickers();
+  const stickersByTeam = useMemo(() => {
+    const map = new Map<string, StickerDef[]>();
+    for (const s of stickers) {
+      if (!map.has(s.teamId)) map.set(s.teamId, []);
+      map.get(s.teamId)!.push(s);
+    }
+    return map;
+  }, [stickers]);
+
   const totalRepeated = Object.values(repeatedStickers).reduce((acc, count) => acc + count, 0);
   
-  const getTeamRepeatedCount = (prefix: string, count: number) => {
+  const getTeamRepeatedCount = (teamId: string) => {
     let repeatedCount = 0;
-    for (let i = 1; i <= count; i++) {
-        repeatedCount += (repeatedStickers[`${prefix}-${i}`] || 0);
+    const teamStickers = stickersByTeam.get(teamId) || [];
+    for (const s of teamStickers) {
+      repeatedCount += (repeatedStickers[s.id] || 0);
     }
     return repeatedCount;
   };
@@ -26,11 +37,12 @@ export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedP
     let repeated: string[] = [];
     WORLD_CUP_TEAMS.forEach(team => {
         const teamRepeated: string[] = [];
-        for (let i = 1; i <= team.count; i++) {
-            const stickerId = `${team.prefix}-${i}`;
-            const count = repeatedStickers[stickerId] || 0;
+        const teamStickers = stickersByTeam.get(team.id) || [];
+        for (const s of teamStickers) {
+            const count = repeatedStickers[s.id] || 0;
             if (count > 0) {
-                teamRepeated.push(count > 1 ? `${i} (x${count})` : `${i}`);
+                const number = s.number === 0 ? '00' : s.number.toString();
+                teamRepeated.push(count > 1 ? `${number} (x${count})` : `${number}`);
             }
         }
         if (teamRepeated.length > 0) {
@@ -113,12 +125,13 @@ export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedP
         
         {filteredTeams.map((team) => {
           const isExpanded = expandedTeam === team.id;
-          const repeatedInTeam = getTeamRepeatedCount(team.prefix, team.count);
+          const repeatedInTeam = getTeamRepeatedCount(team.id);
           const hasRepeated = repeatedInTeam > 0;
           const isCC = team.prefix === 'CC'; // Coca cola uses red
           const accentColor = isCC ? 'text-[#F40009]' : 'text-[#00FF00]';
           const bgAccentLight = isCC ? 'bg-[#F40009]/20' : 'bg-[#00FF00]/20';
           const bgAccentHover = isCC ? 'hover:bg-[#F40009]/10' : 'hover:bg-[#00FF00]/10';
+          const teamStickers = stickersByTeam.get(team.id) || [];
 
           return (
             <div key={team.id} className="bg-[#151515] rounded-xl overflow-hidden border border-[#2a2a2a] transition-all">
@@ -146,9 +159,9 @@ export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedP
 
               {isExpanded && (
                 <div className="p-5 bg-black border-t border-[#222] grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
-                  {Array.from({ length: team.count }).map((_, idx) => {
-                    const number = idx + 1;
-                    const stickerId = `${team.prefix}-${number}`;
+                  {teamStickers.map((sticker) => {
+                    const number = sticker.number === 0 ? '00' : sticker.number;
+                    const stickerId = sticker.id;
                     const count = repeatedStickers[stickerId] || 0;
                     const isRepeated = count > 0;
                     
@@ -166,7 +179,7 @@ export default function Repeated({ repeatedStickers, updateRepeated }: RepeatedP
                         `}
                         onClick={!isRepeated ? () => updateRepeated(stickerId, 1) : undefined}
                       >
-                        <span className={`text-[9px] font-bold ${isRepeated ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : ''}`}>{team.prefix}</span>
+                        <span className={`text-[9px] font-bold ${isRepeated ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : ''}`}>{sticker.prefix}</span>
                         <span className={`text-xl font-display mt-0.5 ${isRepeated ? 'text-white' : ''}`}>{number}</span>
                         
                         {isRepeated && (

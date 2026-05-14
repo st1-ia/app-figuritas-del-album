@@ -120,6 +120,11 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     const upperInput = input.toUpperCase().replace(/[^A-Z0-9\s\-_]/g, '');
     const noSpaces = upperInput.replace(/\s+/g, '');
     
+    // Check for sticker 00 explicitly
+    if (/(^|[^A-Z0-9])(00|OO|O0|0O)([^A-Z0-9]|$)/.test(noSpaces)) {
+        return { foundPrefix: "00", num: 0 };
+    }
+
     if (noSpaces.length < 3) return { foundPrefix: "", num: 0 };
 
     // Si es modo scanner estricto y la cadena es larguísima o no tiene numeros, descartamos
@@ -146,7 +151,8 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                const cleanNum = lettersToNums(numMatch[1]).replace(/[^0-9]/g, '');
                if (cleanNum.length > 0) {
                    const num = parseInt(cleanNum, 10);
-                   if (num > 0 && num <= team.count) {
+                   const start = team.startNumber ?? 1;
+                   if (num >= start && num <= team.count) {
                        // Si estamos en modo estricto, validar que no tenga demasiada basura antes o después
                        if (strict) {
                            const before = textAsLetters.substring(0, idx);
@@ -172,24 +178,36 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     
     const { foundPrefix, num } = parseCodeString(manualInput, false);
 
-    if (foundPrefix) {
-      const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
-      
-      if (validTeam && num > 0 && num <= validTeam.count) {
+    if (foundPrefix === '00' && num === 0) {
         setResult({
-          id: `${foundPrefix}-${num}`,
-          display: `${foundPrefix} ${num}`
+          id: '00',
+          display: '00'
         });
         setError(null);
         setManualInput('');
         setAddedToRepeated(false);
+        setRemovedFromRepeated(false);
+        return;
+    } else if (foundPrefix) {
+      const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
+      
+      const start = validTeam?.startNumber ?? 1;
+      if (validTeam && num >= start && num <= validTeam.count) {
+        setResult({
+          id: num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`,
+          display: num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`
+        });
+        setError(null);
+        setManualInput('');
+        setAddedToRepeated(false);
+        setRemovedFromRepeated(false);
         return;
       } else if (validTeam) {
-        setError(`El número debe estar entre 1 y ${validTeam.count}`);
+        setError(`El número debe estar entre ${start} y ${validTeam.count}`);
         return;
       }
     }
-    setError("Código no válido. Intenta algo como 'ARG 10' o 'FWC 2'");
+    setError("Código no válido. Intenta algo como 'ARG 10', 'FWC 2' o '00'");
   };
 
   const handleZoomChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -248,13 +266,22 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         if (text.length >= 2 && conf > 25) {
            const { foundPrefix, num } = parseCodeString(text, false);
 
-           if (foundPrefix) {
+           if (foundPrefix === '00' && num === 0) {
+               setResult({
+                   id: '00',
+                   display: '00'
+               });
+               setError(null);
+               setAddedToRepeated(false);
+               setRemovedFromRepeated(false);
+           } else if (foundPrefix) {
              const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);          
 
-             if (validTeam && num > 0 && num <= validTeam.count) {
+             const start = validTeam?.startNumber ?? 1;
+             if (validTeam && num >= start && num <= validTeam.count) {
                  setResult({
-                     id: `${validTeam.prefix}-${num}`,
-                     display: `${validTeam.prefix} ${num}`
+                     id: num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`,
+                     display: num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`
                  });
                  setError(null);
                  setAddedToRepeated(false);
