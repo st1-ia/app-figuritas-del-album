@@ -35,8 +35,8 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
       setReceivedNumber('');
       
       setTimeout(() => setSuccess(false), 3000);
-    } catch (err) {
-      setError("Hubo un error al realizar el intercambio.");
+    } catch (err: any) {
+      setError(err.message || "Hubo un error al realizar el intercambio.");
     }
   };
 

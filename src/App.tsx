@@ -139,6 +139,10 @@ export default function App() {
     let nextOwned = new Set<string>(ownedStickers);
     let nextRepeated = { ...repeatedStickers };
 
+    if (!nextRepeated[givenId] || nextRepeated[givenId] <= 0) {
+      throw new Error(`La figurita que entregas (${givenId}) no la tienes repetida.`);
+    }
+
     if (nextRepeated[givenId] > 0) {
       nextRepeated[givenId] -= 1;
       if (nextRepeated[givenId] === 0) {

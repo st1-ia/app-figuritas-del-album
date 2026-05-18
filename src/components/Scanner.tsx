@@ -266,7 +266,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         console.log(`OCR: "${text}" | Confianza: ${conf}%`);
         
         // Requiere menos confianza para ser más rápido y robusto
-        if (text.length >= 2 && conf > 25) {
+        if (text.length >= 2 && conf > 40) {
            const { foundPrefix, num } = parseCodeString(text, false);
 
            if (foundPrefix === '00' && num === 0) {
@@ -312,7 +312,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
       }
       
       if (active) {
-        setTimeout(scanLoop, 500);
+        setTimeout(scanLoop, 300);
       }
     };
     
@@ -500,7 +500,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
                      
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && (
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && !addedToRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -509,7 +509,13 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && (
+                     {isAlreadyOwned && addedToRepeated && (
+                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
+                             <Check size={20} /> Agregada a repetidas
+                         </div>
+                     )}
+
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && !addedToRepeated && (
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
@@ -611,7 +617,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                       </button>
                     )}
                     
-                    {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && (
+                    {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && !addedToRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
                            className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
@@ -620,7 +626,13 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         </button>
                      )}
 
-                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && (
+                     {isAlreadyOwned && addedToRepeated && (
+                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
+                             <Check size={20} /> Agregada a repetidas
+                         </div>
+                     )}
+
+                     {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && !addedToRepeated && (
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
