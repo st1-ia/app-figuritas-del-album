@@ -15,12 +15,25 @@
           "description": "List of repeated sticker IDs (e.g. ARG-10)",
           "items": { "type": "string" }
         },
+        "activities": {
+          "type": "array",
+          "description": "List of recent activity log events",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "text": { "type": "string" },
+              "timestamp": { "type": "number" }
+            },
+            "required": ["id", "text", "timestamp"]
+          }
+        },
         "updatedAt": {
           "type": "string",
           "format": "date-time"
         }
       },
-      "required": ["ownedStickers", "repeatedStickers", "updatedAt"]
+      "required": ["ownedStickers", "repeatedStickers", "activities", "updatedAt"]
     }
   },
   "firestore": {

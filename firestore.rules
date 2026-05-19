@@ -36,6 +36,9 @@ service cloud.firestore {
           && data.repeatedStickers is list
           && data.repeatedStickers.size() <= 1500
           && (data.repeatedStickers.size() == 0 || (data.repeatedStickers[0] is string && data.repeatedStickers[0].size() <= 64))
+          && (!('activities' in data) || (data.activities is list
+             && data.activities.size() <= 500
+             && (data.activities.size() == 0 || (data.activities[0] is map && data.activities[0].id is string && data.activities[0].text is string && data.activities[0].timestamp is number))))
           && data.updatedAt == request.time;
     }
 
@@ -46,7 +49,7 @@ service cloud.firestore {
       allow create: if incoming().keys().hasAll(['ownedStickers', 'repeatedStickers', 'updatedAt']) 
                     && isValidAlbum(incoming());
       allow update: if isValidAlbum(incoming())
-                    && incoming().diff(existing()).affectedKeys().hasOnly(['ownedStickers', 'repeatedStickers', 'updatedAt']);
+                    && incoming().diff(existing()).affectedKeys().hasOnly(['ownedStickers', 'repeatedStickers', 'activities', 'updatedAt']);
     }
 
     // Connectivity test
