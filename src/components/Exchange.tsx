@@ -22,11 +22,18 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
       return;
     }
 
-    const givenId = `${givenPrefix.toUpperCase().trim()}-${givenNumber.trim()}`;
-    const receivedId = `${receivedPrefix.toUpperCase().trim()}-${receivedNumber.trim()}`;
+    let givenBaseId = `${givenPrefix.toUpperCase().trim()}-${givenNumber.trim()}`;
+    let receivedBaseId = `${receivedPrefix.toUpperCase().trim()}-${receivedNumber.trim()}`;
+
+    if (givenPrefix.toUpperCase().trim() === 'FWC' && (givenNumber.trim() === '0' || givenNumber.trim() === '00')) {
+      givenBaseId = '00';
+    }
+    if (receivedPrefix.toUpperCase().trim() === 'FWC' && (receivedNumber.trim() === '0' || receivedNumber.trim() === '00')) {
+      receivedBaseId = '00';
+    }
 
     try {
-      await executeExchange(givenId, receivedId);
+      await executeExchange(givenBaseId, receivedBaseId);
       setSuccess(true);
       setError(null);
       setGivenPrefix('');
@@ -86,7 +93,7 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
                   onChange={(e) => setGivenNumber(e.target.value)}
                   className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white font-display text-xl text-center focus:border-red-400 focus:outline-none transition-colors"
                   placeholder="10"
-                  min="1"
+                  min="0"
                   max="99"
                 />
               </div>
@@ -121,7 +128,7 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
                   onChange={(e) => setReceivedNumber(e.target.value)}
                   className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white font-display text-xl text-center focus:border-[#00FF00] focus:outline-none transition-colors"
                   placeholder="9"
-                  min="1"
+                  min="0"
                   max="99"
                 />
               </div>

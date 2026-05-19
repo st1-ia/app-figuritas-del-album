@@ -7,6 +7,7 @@ import Album from './components/Album';
 import Scanner from './components/Scanner';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
+import { getAllStickers } from './data/stickers';
 import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
@@ -139,6 +140,12 @@ export default function App() {
     let nextOwned = new Set<string>(ownedStickers);
     let nextRepeated = { ...repeatedStickers };
 
+    const validStickers = getAllStickers();
+    const validReceives = validStickers.find(s => s.id === receivedId);
+    if (!validReceives) {
+      throw new Error(`La figurita que recibes (${receivedId}) no es un código válido.`);
+    }
+
     if (!nextRepeated[givenId] || nextRepeated[givenId] <= 0) {
       throw new Error(`La figurita que entregas (${givenId}) no la tienes repetida.`);
     }
@@ -181,7 +188,7 @@ export default function App() {
         ) : (
           <>
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
-            {activeTab === 'repeated' && <Repeated repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
+            {activeTab === 'repeated' && <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} />}
             {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
