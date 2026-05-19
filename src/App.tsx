@@ -189,7 +189,7 @@ export default function App() {
           <>
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
             {activeTab === 'repeated' && <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
-            {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} />}
+            {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />}
             {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
           </>

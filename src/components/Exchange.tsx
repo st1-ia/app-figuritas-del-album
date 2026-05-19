@@ -3,9 +3,10 @@ import { ArrowLeftRight, CheckCircle2 } from 'lucide-react';
 
 interface ExchangeProps {
   executeExchange: (givenId: string, receivedId: string) => Promise<void>;
+  ownedStickers: Set<string>;
 }
 
-export default function Exchange({ executeExchange }: ExchangeProps) {
+export default function Exchange({ executeExchange, ownedStickers }: ExchangeProps) {
   const [givenPrefix, setGivenPrefix] = useState('');
   const [givenNumber, setGivenNumber] = useState('');
   
@@ -14,8 +15,26 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
 
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmData, setConfirmData] = useState<{ givenId: string, receivedId: string } | null>(null);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const performExchange = async (givenId: string, receivedId: string) => {
+    try {
+      await executeExchange(givenId, receivedId);
+      setSuccess(true);
+      setError(null);
+      setGivenPrefix('');
+      setGivenNumber('');
+      setReceivedPrefix('');
+      setReceivedNumber('');
+      setConfirmData(null);
+      
+      setTimeout(() => setSuccess(false), 3000);
+    } catch (err: any) {
+      setError(err.message || "Hubo un error al realizar el intercambio.");
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!givenPrefix || !givenNumber || !receivedPrefix || !receivedNumber) {
       setError("Por favor completa todos los campos.");
@@ -32,19 +51,12 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
       receivedBaseId = '00';
     }
 
-    try {
-      await executeExchange(givenBaseId, receivedBaseId);
-      setSuccess(true);
-      setError(null);
-      setGivenPrefix('');
-      setGivenNumber('');
-      setReceivedPrefix('');
-      setReceivedNumber('');
-      
-      setTimeout(() => setSuccess(false), 3000);
-    } catch (err: any) {
-      setError(err.message || "Hubo un error al realizar el intercambio.");
+    if (ownedStickers.has(receivedBaseId)) {
+      setConfirmData({ givenId: givenBaseId, receivedId: receivedBaseId });
+      return;
     }
+
+    performExchange(givenBaseId, receivedBaseId);
   };
 
   return (
@@ -143,6 +155,32 @@ export default function Exchange({ executeExchange }: ExchangeProps) {
           </button>
         </form>
       </div>
+
+      {confirmData && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
+          <div className="bg-[#111] border border-[#333] rounded-xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-display uppercase text-white mb-4">¿Confirmar cambio?</h3>
+            <p className="text-gray-400 mb-6">
+              Ya tenés la figurita recibida <strong className="text-white">{confirmData.receivedId}</strong>. 
+              Si aceptás el cambio, la figurita entregada <strong className="text-white">{confirmData.givenId}</strong> se descontará de tus repetidas y la recibida se agregará a tus repetidas.
+            </p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setConfirmData(null)}
+                className="flex-1 bg-[#222] hover:bg-[#333] text-white py-3 rounded-lg font-display uppercase tracking-widest transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => performExchange(confirmData.givenId, confirmData.receivedId)}
+                className="flex-1 bg-[#00FF00] hover:bg-white text-black py-3 rounded-lg font-display uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(0,255,0,0.2)]"
+              >
+                Aceptar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
