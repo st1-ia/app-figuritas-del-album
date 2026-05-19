@@ -6,11 +6,12 @@ import { WORLD_CUP_TEAMS } from '../data/stickers';
 interface ScannerProps {
   ownedStickers: Set<string>;
   repeatedStickers?: Record<string, number>;
-  toggleOwned: (id: string, forceStatus?: boolean) => void;
-  updateRepeated?: (id: string, delta: number) => void;
+  toggleOwned: (id: string, forceStatus?: boolean, context?: string) => void;
+  updateRepeated?: (id: string, delta: number, context?: string) => void;
+  addActivity?: (text: string) => void;
 }
 
-export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated }: ScannerProps) {
+export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Tesseract.Worker | null>(null);
@@ -180,8 +181,12 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     const { foundPrefix, num } = parseCodeString(manualInput, false);
 
     if (foundPrefix === '00' && num === 0) {
+        const resultId = '00';
+        const isOwned = ownedStickers.has(resultId);
+        if (addActivity) addActivity(`Busqué manualmente la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+
         setResult({
-          id: '00',
+          id: resultId,
           display: '00'
         });
         setError(null);
@@ -195,9 +200,15 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
       
       const start = validTeam?.startNumber ?? 1;
       if (validTeam && num >= start && num <= validTeam.count) {
+        const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`;
+        const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`;
+        
+        const isOwned = ownedStickers.has(resultId);
+        if (addActivity) addActivity(`Busqué manualmente la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+
         setResult({
-          id: num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`,
-          display: num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`
+          id: resultId,
+          display: display
         });
         setError(null);
         setManualInput('');
@@ -270,8 +281,12 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
            const { foundPrefix, num } = parseCodeString(text, false);
 
            if (foundPrefix === '00' && num === 0) {
+               const resultId = '00';
+               const isOwned = ownedStickers.has(resultId);
+               if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+               
                setResult({
-                   id: '00',
+                   id: resultId,
                    display: '00'
                });
                setError(null);
@@ -283,9 +298,15 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
              const start = validTeam?.startNumber ?? 1;
              if (validTeam && num >= start && num <= validTeam.count) {
+                 const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`;
+                 const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`;
+                 
+                 const isOwned = ownedStickers.has(resultId);
+                 if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+
                  setResult({
-                     id: num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`,
-                     display: num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`
+                     id: resultId,
+                     display: display
                  });
                  setError(null);
                  setAddedToRepeated(false);
@@ -327,14 +348,14 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
   const handleMarkAsOwned = () => {
     if (result) {
-      toggleOwned(result.id, true);
+      toggleOwned(result.id, true, `Agregué la figurita ${result.id} al álbum desde el escáner.`);
       setAddedToAlbum(true);
     }
   };
 
   const handleMarkAsRepeated = () => {
     if (result && updateRepeated) {
-      updateRepeated(result.id, 1);
+      updateRepeated(result.id, 1, `Agregué una repetida de la figurita ${result.id} desde el escáner (Total: ${currentRepeatedCount + 1}).`);
       setAddedToRepeated(true);
       setRemovedFromRepeated(false);
     }
@@ -342,7 +363,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
   const handleRemoveFromRepeated = () => {
     if (result && updateRepeated) {
-      updateRepeated(result.id, -1);
+      updateRepeated(result.id, -1, `Saqué una repetida de la figurita ${result.id} desde el escáner (Quedan: ${Math.max(currentRepeatedCount - 1, 0)}).`);
       setRemovedFromRepeated(true);
       setAddedToRepeated(false);
     }

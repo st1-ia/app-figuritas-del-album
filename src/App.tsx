@@ -7,10 +7,17 @@ import Album from './components/Album';
 import Scanner from './components/Scanner';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
+import ActivitiesList from './components/ActivitiesList';
 import { getAllStickers } from './data/stickers';
-import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft } from 'lucide-react';
+import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft, History } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+
+export interface ActivityLog {
+  id: string;
+  text: string;
+  timestamp: number;
+}
 
 function SettingsTab({ clearAlbum }: { clearAlbum: () => void }) {
   return (
@@ -50,10 +57,11 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'settings'>('album');
+  const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'activities' | 'settings'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
   const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
+  const [activities, setActivities] = useState<ActivityLog[]>([]);
 
   // Listen to Firestore for global album
   useEffect(() => {
@@ -69,9 +77,13 @@ export default function App() {
         if (data.repeatedStickers && Array.isArray(data.repeatedStickers)) {
           setRepeatedStickers(deserializeRepeated(data.repeatedStickers));
         }
+        if (data.activities && Array.isArray(data.activities)) {
+          setActivities(data.activities);
+        }
       } else {
         setOwnedStickers(new Set());
         setRepeatedStickers({});
+        setActivities([]);
       }
       setIsLoaded(true);
     }, (error) => {
@@ -87,12 +99,13 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
-  const persistToDB = async (newOwned: Set<string>, newRepeated: Record<string, number>) => {
+  const persistToDB = async (newOwned: Set<string>, newRepeated: Record<string, number>, newActivities: ActivityLog[] = activities) => {
     try {
       const docRef = doc(db, 'albums', 'global');
       await setDoc(docRef, {
         ownedStickers: Array.from(newOwned),
         repeatedStickers: serializeRepeated(newRepeated),
+        activities: newActivities,
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
@@ -100,28 +113,49 @@ export default function App() {
     }
   };
 
+  const addActivity = async (text: string) => {
+    const newActivity: ActivityLog = { id: Date.now().toString() + Math.random(), text, timestamp: Date.now() };
+    const nextActivities = [newActivity, ...activities].slice(0, 50); // Keep last 50 activities
+    setActivities(nextActivities);
+    // Don't call persistToDB here separately if we're calling it from a state modifier, to avoid race conditions.
+    // Instead return nextActivities to pass inside persistToDB
+    return nextActivities;
+  };
+
   const clearAlbum = async () => {
     const emptyOwned = new Set<string>();
     const emptyRepeated: Record<string, number> = {};
+    const nextActivities = await addActivity('Se borró el álbum entero.');
     setOwnedStickers(emptyOwned);
     setRepeatedStickers(emptyRepeated);
-    await persistToDB(emptyOwned, emptyRepeated);
+    await persistToDB(emptyOwned, emptyRepeated, nextActivities);
   };
 
-  const toggleOwned = async (id: string, forceStatus?: boolean) => {
+  const toggleOwned = async (id: string, forceStatus?: boolean, sourceContext?: string) => {
     let nextOwned = new Set<string>(ownedStickers);
+    let added = false;
+    
     if (forceStatus !== undefined) {
-      if (forceStatus) nextOwned.add(id);
-      else nextOwned.delete(id);
+      if (forceStatus) { nextOwned.add(id); added = true; }
+      else { nextOwned.delete(id); }
     } else {
-      if (nextOwned.has(id)) nextOwned.delete(id);
-      else nextOwned.add(id);
+      if (nextOwned.has(id)) { nextOwned.delete(id); }
+      else { nextOwned.add(id); added = true; }
     }
     setOwnedStickers(nextOwned);
-    await persistToDB(nextOwned, repeatedStickers);
+    
+    let nextActivities = activities;
+    if (sourceContext) {
+      nextActivities = await addActivity(sourceContext);
+    } else {
+      if (added) nextActivities = await addActivity(`Agregué la figurita ${id} al álbum manualmente.`);
+      else nextActivities = await addActivity(`Quité la figurita ${id} del álbum manualmente.`);
+    }
+
+    await persistToDB(nextOwned, repeatedStickers, nextActivities);
   };
 
-  const updateRepeated = async (id: string, delta: number) => {
+  const updateRepeated = async (id: string, delta: number, sourceContext?: string) => {
     let nextRepeated = { ...repeatedStickers };
     const current = nextRepeated[id] || 0;
     const newCount = current + delta;
@@ -133,7 +167,25 @@ export default function App() {
     }
     
     setRepeatedStickers(nextRepeated);
-    await persistToDB(ownedStickers, nextRepeated);
+    
+    let nextActivities = activities;
+    if (sourceContext) {
+      nextActivities = await addActivity(sourceContext);
+    } else {
+      if (delta > 0) {
+         nextActivities = await addActivity(`Agregué una repetida de la figurita ${id} (Total: ${newCount})`);
+      } else {
+         if (newCount === 1) {
+            nextActivities = await addActivity(`Saqué una repetida de la figurita ${id}. ¡Queda 1 sola repetida!`);
+         } else if (newCount <= 0) {
+            nextActivities = await addActivity(`Saqué la figurita ${id} de repetidas. Ya no me sobran de esta.`);
+         } else {
+            nextActivities = await addActivity(`Saqué una repetida de la figurita ${id} (Quedan: ${newCount})`);
+         }
+      }
+    }
+
+    await persistToDB(ownedStickers, nextRepeated, nextActivities);
   };
 
   const executeExchange = async (givenId: string, receivedId: string) => {
@@ -157,7 +209,8 @@ export default function App() {
       }
     }
 
-    if (nextOwned.has(receivedId)) {
+    let alreadyHadReceived = nextOwned.has(receivedId);
+    if (alreadyHadReceived) {
       nextRepeated[receivedId] = (nextRepeated[receivedId] || 0) + 1;
     } else {
       nextOwned.add(receivedId);
@@ -165,7 +218,20 @@ export default function App() {
 
     setOwnedStickers(nextOwned);
     setRepeatedStickers(nextRepeated);
-    await persistToDB(nextOwned, nextRepeated);
+    
+    let nextActivities;
+    if (alreadyHadReceived) {
+      nextActivities = await addActivity(`Cambié la figurita ${givenId} por la ${receivedId}. Como ya la tenía, se fue a repetidas.`);
+    } else {
+      nextActivities = await addActivity(`Cambié la figurita ${givenId} por la ${receivedId}. ¡Directo al álbum!`);
+    }
+
+    await persistToDB(nextOwned, nextRepeated, nextActivities);
+  };
+
+  const handleScannerAddActivity = async (text: string) => {
+    const nextActivities = await addActivity(text);
+    await persistToDB(ownedStickers, repeatedStickers, nextActivities);
   };
 
   return (
@@ -176,7 +242,7 @@ export default function App() {
               <span className="text-white">Mundial</span> 
               <span className="text-[#00FF00]">Tracker</span>
             </div>
-            <span className="text-[8px] text-gray-500 opacity-50 tracking-[4px] mt-1">VER 1.0.2 - CLOUD SYNC FIXED</span>
+            <span className="text-[8px] text-gray-500 opacity-50 tracking-[4px] mt-1">VER 1.0.3 - ACTIVITY LOGS</span>
          </h1>
       </header>
 
@@ -190,7 +256,8 @@ export default function App() {
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
             {activeTab === 'repeated' && <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />}
-            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
+            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} addActivity={handleScannerAddActivity} />}
+            {activeTab === 'activities' && <ActivitiesList activities={activities} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
           </>
         )}
@@ -200,38 +267,45 @@ export default function App() {
       <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#222] flex justify-around items-center p-2 pb-6 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-30">
         <button 
           onClick={() => setActiveTab('album')}
-          className={`flex flex-col items-center justify-center w-1/5 py-2 transition-all duration-300 ${activeTab === 'album' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'album' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={22} className={activeTab === 'album' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Álbum</span>
+          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={20} className={activeTab === 'album' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Álbum</span>
         </button>
         <button 
           onClick={() => setActiveTab('repeated')}
-          className={`flex flex-col items-center justify-center w-1/5 py-2 transition-all duration-300 ${activeTab === 'repeated' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'repeated' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={22} className={activeTab === 'repeated' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Repetidas</span>
+          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={20} className={activeTab === 'repeated' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Repetidas</span>
         </button>
         <button 
           onClick={() => setActiveTab('exchange')}
-          className={`flex flex-col items-center justify-center w-1/5 py-2 transition-all duration-300 ${activeTab === 'exchange' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'exchange' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={22} className={activeTab === 'exchange' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Cambiar</span>
+          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={20} className={activeTab === 'exchange' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Cambiar</span>
         </button>
         <button 
           onClick={() => setActiveTab('scanner')}
-          className={`flex flex-col items-center justify-center w-1/5 py-2 transition-all duration-300 ${activeTab === 'scanner' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'scanner' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={22} className={activeTab === 'scanner' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Escáner</span>
+          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={20} className={activeTab === 'scanner' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Escáner</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('activities')}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'activities' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={20} className={activeTab === 'activities' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Actividad</span>
         </button>
         <button 
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center w-1/5 py-2 transition-all duration-300 ${activeTab === 'settings' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'settings' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <Settings strokeWidth={activeTab === 'settings' ? 2.5 : 2} size={22} className={activeTab === 'settings' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[9px] font-bold uppercase tracking-widest">Ajustes</span>
+          <Settings strokeWidth={activeTab === 'settings' ? 2.5 : 2} size={20} className={activeTab === 'settings' ? 'scale-110 mb-1' : 'mb-1'} />
+          <span className="text-[8px] font-bold uppercase tracking-widest">Ajustes</span>
         </button>
       </nav>
     </div>
