@@ -229,6 +229,40 @@ export default function App() {
     await persistToDB(nextOwned, nextRepeated, nextActivities);
   };
 
+  const batchSaveStickers = async (stickersList: { id: string; count: number }[]) => {
+    let nextOwned = new Set<string>(ownedStickers);
+    let nextRepeated = { ...repeatedStickers };
+    let addedCount = 0;
+    let repeatedCount = 0;
+    
+    for (const item of stickersList) {
+      const { id, count } = item;
+      const alreadyHas = nextOwned.has(id);
+      
+      if (!alreadyHas) {
+        nextOwned.add(id);
+        addedCount++;
+        
+        if (count > 1) {
+          nextRepeated[id] = (nextRepeated[id] || 0) + (count - 1);
+          repeatedCount += (count - 1);
+        }
+      } else {
+        nextRepeated[id] = (nextRepeated[id] || 0) + count;
+        repeatedCount += count;
+      }
+    }
+    
+    setOwnedStickers(nextOwned);
+    setRepeatedStickers(nextRepeated);
+    
+    // Create a detailed dynamic activity text with some sticker names
+    const sampleStickers = stickersList.slice(0, 3).map(s => s.id).join(', ') + (stickersList.length > 3 ? '...' : '');
+    const activityText = `Escaneo múltiple finalizado: se procesaron ${stickersList.length} figuritas (${sampleStickers}). Se agregaron ${addedCount} al álbum y ${repeatedCount} a repetidas.`;
+    const nextActivities = await addActivity(activityText);
+    await persistToDB(nextOwned, nextRepeated, nextActivities);
+  };
+
   const handleScannerAddActivity = async (text: string) => {
     const nextActivities = await addActivity(text);
     await persistToDB(ownedStickers, repeatedStickers, nextActivities);
@@ -256,7 +290,7 @@ export default function App() {
             {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
             {activeTab === 'repeated' && <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
             {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />}
-            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} addActivity={handleScannerAddActivity} />}
+            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} addActivity={handleScannerAddActivity} batchSaveStickers={batchSaveStickers} />}
             {activeTab === 'activities' && <ActivitiesList activities={activities} />}
             {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
           </>

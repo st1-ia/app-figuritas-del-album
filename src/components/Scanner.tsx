@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Check, AlertCircle, Loader2, Type as TypeIcon, CopyPlus } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertCircle, Loader2, Type as TypeIcon, CopyPlus, Trash2, Plus, Minus, ListOrdered } from 'lucide-react';
 import Tesseract from 'tesseract.js';
-import { WORLD_CUP_TEAMS } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
 
 interface ScannerProps {
   ownedStickers: Set<string>;
@@ -9,9 +9,10 @@ interface ScannerProps {
   toggleOwned: (id: string, forceStatus?: boolean, context?: string) => void;
   updateRepeated?: (id: string, delta: number, context?: string) => void;
   addActivity?: (text: string) => void;
+  batchSaveStickers?: (stickersList: { id: string; count: number }[]) => Promise<void>;
 }
 
-export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity }: ScannerProps) {
+export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity, batchSaveStickers }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Tesseract.Worker | null>(null);
@@ -28,6 +29,91 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   // Manual mode state
   const [manualMode, setManualMode] = useState<boolean>(false);
   const [manualInput, setManualInput] = useState<string>('');
+
+  // Scan modes and multiple scanning session states
+  const [scanMode, setScanMode] = useState<'single' | 'multiple'>('single');
+  const [sessionStickers, setSessionStickers] = useState<{ id: string; display: string; count: number }[]>([]);
+  const [recentlyScanned, setRecentlyScanned] = useState<Record<string, number>>({});
+  const recentlyScannedRef = useRef<Record<string, number>>({});
+  const [isSessionFinished, setIsSessionFinished] = useState(false);
+  const [flashSuccess, setFlashSuccess] = useState(false);
+  const [lastScannedText, setLastScannedText] = useState<string | null>(null);
+
+  // Precompute sticker order map to sort them in multiple session
+  const stickers = getAllStickers();
+  const stickerOrderMap = React.useMemo(() => {
+    const map = new Map<string, number>();
+    stickers.forEach((sticker, index) => {
+      map.set(sticker.id, index);
+    });
+    return map;
+  }, [stickers]);
+
+  const sortedStickers = React.useMemo(() => {
+    return [...sessionStickers].sort((a, b) => {
+      const indexA = stickerOrderMap.get(a.id) ?? Infinity;
+      const indexB = stickerOrderMap.get(b.id) ?? Infinity;
+      return indexA - indexB;
+    });
+  }, [sessionStickers, stickerOrderMap]);
+
+  // Audio helper beep
+  const playBeep = () => {
+    try {
+      const AudioContextClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (!AudioContextClass) return;
+      const ctx = new AudioContextClass();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(800, ctx.currentTime);
+      gain.gain.setValueAtTime(0, ctx.currentTime);
+      gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.05);
+      gain.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.2);
+       osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.25);
+    } catch (err) {
+      console.error("Audio beep failed:", err);
+    }
+  };
+
+  const handleScannedInSession = (id: string, display: string, bypassTimer: boolean = false) => {
+    const lastScannedTime = recentlyScannedRef.current[id] || 0;
+    const now = Date.now();
+    if (!bypassTimer && (now - lastScannedTime < 2500)) {
+       // Avoid continuous automatic triggers
+       return;
+    }
+    
+    // Play beep sound and trigger screen flash
+    playBeep();
+    setFlashSuccess(true);
+    setTimeout(() => setFlashSuccess(false), 250);
+    
+    // Temporary confirmation banner
+    setLastScannedText(`¡Detectada: ${display}!`);
+    setTimeout(() => {
+      setLastScannedText((prev) => prev === `¡Detectada: ${display}!` ? null : prev);
+    }, 2000);
+
+    recentlyScannedRef.current[id] = now;
+    setRecentlyScanned({ ...recentlyScannedRef.current });
+
+    setSessionStickers((prev) => {
+      const existing = prev.find(item => item.id === id);
+      if (existing) {
+         return prev.map(item => item.id === id ? { ...item, count: item.count + 1 } : item);
+      } else {
+         return [...prev, { id, display, count: 1 }];
+      }
+    });
+
+    if (addActivity && bypassTimer) {
+      addActivity(`Agregué manualmente la figurita ${id} al lote temporal.`);
+    }
+  };
   
   // ... rest of the state declarations ...
   const [isScanning, setIsScanning] = useState(false);
@@ -182,6 +268,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
     if (foundPrefix === '00' && num === 0) {
         const resultId = '00';
+        
         const isOwned = ownedStickers.has(resultId);
         if (addActivity) addActivity(`Busqué manualmente la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
 
@@ -234,7 +321,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   };
 
   const captureAndAnalyze = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isScanningRef.current || result || manualMode || !workerRef.current) return;
+    if (!videoRef.current || !canvasRef.current || isScanningRef.current || result || manualMode || !workerRef.current || isSessionFinished) return;
     
     if (videoRef.current.readyState < 2) return;
 
@@ -282,6 +369,8 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
            if (foundPrefix === '00' && num === 0) {
                const resultId = '00';
+               const display = '00';
+               
                const isOwned = ownedStickers.has(resultId);
                if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
                
@@ -322,13 +411,13 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     
     setIsScanning(false);
     isScanningRef.current = false;
-  }, [result, manualMode]);
+  }, [result, manualMode, scanMode, isSessionFinished, ownedStickers]);
 
   useEffect(() => {
     let active = true;
     
     const scanLoop = async () => {
-      if (!manualMode && !result && hasPermission && !isScanningRef.current && workerRef.current) {
+      if (!manualMode && !result && hasPermission && !isScanningRef.current && workerRef.current && !isSessionFinished) {
         await captureAndAnalyze();
       }
       
@@ -337,32 +426,59 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
       }
     };
     
-    if (!manualMode && !result && hasPermission) {
+    if (!manualMode && !result && hasPermission && !isSessionFinished) {
       scanLoop();
     }
     
     return () => {
       active = false;
     };
-  }, [manualMode, result, hasPermission, captureAndAnalyze]);
+  }, [manualMode, result, hasPermission, captureAndAnalyze, isSessionFinished]);
 
   const handleMarkAsOwned = () => {
     if (result) {
-      toggleOwned(result.id, true, `Agregué la figurita ${result.id} al álbum desde el escáner.`);
-      setAddedToAlbum(true);
+      if (scanMode === 'multiple') {
+        handleScannedInSession(result.id, result.display, true);
+        setAddedToAlbum(true);
+        setTimeout(() => {
+          setResult(null);
+          setAddedToAlbum(false);
+          setAddedToRepeated(false);
+          setRemovedFromRepeated(false);
+        }, 1000);
+      } else {
+        toggleOwned(result.id, true, `Agregué la figurita ${result.id} al álbum desde el escáner.`);
+        setAddedToAlbum(true);
+      }
     }
   };
 
   const handleMarkAsRepeated = () => {
     if (result && updateRepeated) {
-      updateRepeated(result.id, 1, `Agregué una repetida de la figurita ${result.id} desde el escáner (Total: ${currentRepeatedCount + 1}).`);
-      setAddedToRepeated(true);
-      setRemovedFromRepeated(false);
+      if (scanMode === 'multiple') {
+        handleScannedInSession(result.id, result.display, true);
+        setAddedToRepeated(true);
+        setRemovedFromRepeated(false);
+        setTimeout(() => {
+          setResult(null);
+          setAddedToAlbum(false);
+          setAddedToRepeated(false);
+          setRemovedFromRepeated(false);
+        }, 1000);
+      } else {
+        updateRepeated(result.id, 1, `Agregué una repetida de la figurita ${result.id} desde el escáner (Total: ${currentRepeatedCount + 1}).`);
+        setAddedToRepeated(true);
+        setRemovedFromRepeated(false);
+      }
     }
   };
 
   const handleRemoveFromRepeated = () => {
     if (result && updateRepeated) {
+      if (scanMode === 'multiple') {
+        // En lote no restamos de repetidas desde aqui
+        return;
+      }
       updateRepeated(result.id, -1, `Saqué una repetida de la figurita ${result.id} desde el escáner (Quedan: ${Math.max(currentRepeatedCount - 1, 0)}).`);
       setRemovedFromRepeated(true);
       setAddedToRepeated(false);
@@ -378,6 +494,191 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   // BUT because state in parent updates and syncs to DB, it might be safer to just rely on `rawRepeatedCount`.
   // Let's use `rawRepeatedCount` directly!
   const currentRepeatedCount = rawRepeatedCount;
+
+  if (isSessionFinished) {
+    return (
+      <div className="w-full max-w-lg mx-auto p-4 pb-24 select-none">
+        <div className="bg-[#111] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#333] overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-300">
+          <div className="text-center mb-6">
+            <span className="text-[10px] font-bold text-[#00FF00] uppercase tracking-widest bg-[#00FF00]/10 px-3.5 py-1 rounded-full border border-[#00FF00]/20">
+              Pila Organizada
+            </span>
+            <h2 className="text-2xl font-display text-white mt-4 mb-2 uppercase tracking-wide">Orden para pegar</h2>
+            <p className="text-gray-400 text-xs font-sans px-2 leading-relaxed">
+              Organiza tu pila física de figuritas de modo que las que aparecen primero en el listado queden arriba de todo y las últimas al fondo. ¡Así podrás pegarlas en orden cronológico ultra rápido!
+            </p>
+          </div>
+
+          <div className="space-y-2.5 my-6 max-h-[350px] overflow-y-auto pr-1">
+            {sortedStickers.map((item, idx) => {
+              const hasSticker = ownedStickers.has(item.id);
+              const teamName = WORLD_CUP_TEAMS.find(t => t.prefix === item.id.split('-')[0])?.name || 'Especial';
+              return (
+                <div key={item.id} className="flex items-center gap-3 p-3 bg-black/40 border border-[#222] rounded-lg">
+                  <div className="w-7 h-7 rounded-full bg-[#222] border border-[#333] flex items-center justify-center font-display text-xs text-[#00FF00] font-bold">
+                    {idx + 1}
+                  </div>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-display font-bold text-white text-base tracking-wide">{item.display}</span>
+                      {item.count > 1 && (
+                        <span className="bg-[#00FF00]/10 text-[#00FF00] text-xs font-mono font-bold px-1.5 py-0.5 rounded border border-[#00FF00]/20">
+                          x{item.count}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] text-gray-500 uppercase font-sans tracking-wide mt-0.5 block">{teamName}</span>
+                  </div>
+                  
+                  <div className="text-right">
+                    <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded inline-block ${hasSticker ? 'bg-[#00FF00]/10 text-[#00FF00] border border-[#00FF00]/20' : 'bg-[#FF00FF]/10 text-[#FF00FF] border border-[#FF00FF]/25'}`}>
+                      {hasSticker ? 'Repetida' : 'Nueva'}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          <div className="space-y-3">
+            <button
+              onClick={async () => {
+                if (batchSaveStickers) {
+                  const listToSave = sessionStickers.map(s => ({ id: s.id, count: s.count }));
+                  await batchSaveStickers(listToSave);
+                }
+                setSessionStickers([]);
+                recentlyScannedRef.current = {};
+                setRecentlyScanned({});
+                setIsSessionFinished(false);
+              }}
+              className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors font-bold shadow-[0_0_20px_rgba(0,255,0,0.2)]"
+            >
+              <Check size={20} strokeWidth={3} /> Guardar todo en Álbum
+            </button>
+
+            <button
+              onClick={() => setIsSessionFinished(false)}
+              className="w-full flex items-center justify-center gap-2 bg-[#222] text-[#AAA] py-3 rounded-xl font-display text-xs uppercase tracking-widest hover:bg-[#333] hover:text-white transition-colors"
+            >
+              <RefreshCw size={14} /> Volver a Escanear / Agregar Más
+            </button>
+
+            <button
+              onClick={() => {
+                if (confirm('¿Estás seguro de que deseas descartar todas las figuritas escaneadas de esta pila?')) {
+                  setSessionStickers([]);
+                  recentlyScannedRef.current = {};
+                  setRecentlyScanned({});
+                  setIsSessionFinished(false);
+                }
+              }}
+              className="w-full text-center text-xs text-red-500 hover:text-red-400 uppercase tracking-widest font-bold py-2 mt-2"
+            >
+              Descartar lote
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const renderSessionListWidget = () => {
+    if (scanMode !== 'multiple' || isSessionFinished) return null;
+    
+    const totalCount = sessionStickers.reduce((sum, s) => sum + s.count, 0);
+    
+    return (
+      <div className="mt-4 p-4 border border-[#2d2d2d] bg-[#1a1a1a] rounded-xl text-left">
+        <div className="flex justify-between items-center mb-3">
+          <h4 className="text-[10px] font-display text-gray-400 uppercase tracking-widest flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[#00FF00] animate-pulse"></span>
+            Pila de escaneo ({totalCount} {totalCount === 1 ? 'figurita' : 'figuritas'})
+          </h4>
+          {sessionStickers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => {
+                setSessionStickers([]);
+                recentlyScannedRef.current = {};
+                setRecentlyScanned({});
+              }}
+              className="text-[10px] text-red-500 hover:text-red-400 uppercase tracking-wider font-bold transition-colors"
+            >
+              Limpiar todo
+            </button>
+          )}
+        </div>
+
+        {sessionStickers.length === 0 ? (
+          <p className="text-center text-gray-600 font-sans text-xs py-5">
+            {manualMode 
+              ? 'Escribe códigos y pulsa Enter para agregarlos.' 
+              : 'Apunta a las figuritas una a una para agregarlas a la pila automáticamente.'}
+          </p>
+        ) : (
+          <>
+            <div className="max-h-52 overflow-y-auto space-y-2 mb-4 pr-1">
+              {sortedStickers.map((item) => {
+                const hasSticker = ownedStickers.has(item.id);
+                return (
+                  <div key={item.id} className="flex items-center justify-between p-2.5 bg-black/60 rounded-lg border border-[#2d2d2d] transition-all hover:bg-black">
+                    <div className="flex items-center gap-2.5">
+                      <span className="font-display text-white text-base font-bold min-w-[70px]">{item.display}</span>
+                      <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full ${hasSticker ? 'bg-[#00FF00]/10 text-[#00FF00] border border-[#00FF00]/20' : 'bg-[#FF00FF]/10 text-[#FF00FF] border border-[#FF00FF]/20'}`}>
+                        {hasSticker ? 'Repetida' : 'Nueva'}
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSessionStickers(prev => prev.map(s => s.id === item.id ? { ...s, count: Math.max(1, s.count - 1) } : s));
+                        }}
+                        className="p-1 px-1.5 bg-[#222] border border-[#333] hover:border-gray-500 rounded text-gray-400 hover:text-white transition-colors"
+                      >
+                        <Minus size={12} />
+                      </button>
+                      <span className="text-xs font-mono text-white px-1.5 font-bold">{item.count}</span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSessionStickers(prev => prev.map(s => s.id === item.id ? { ...s, count: s.count + 1 } : s));
+                        }}
+                        className="p-1 px-1.5 bg-[#222] border border-[#333] hover:border-gray-500 rounded text-gray-400 hover:text-white transition-colors"
+                      >
+                        <Plus size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSessionStickers(prev => prev.filter(s => s.id !== item.id));
+                          delete recentlyScannedRef.current[item.id];
+                          setRecentlyScanned({ ...recentlyScannedRef.current });
+                        }}
+                        className="p-1.5 text-red-500 hover:text-red-400 hover:bg-red-500/10 rounded transition-colors ml-1"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            
+            <button
+              type="button"
+              onClick={() => setIsSessionFinished(true)}
+              className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-3 rounded-xl font-display text-sm uppercase tracking-widest hover:bg-white transition-colors font-bold shadow-[0_0_15px_rgba(0,255,0,0.15)]"
+            >
+              <ListOrdered size={16} strokeWidth={2.5} /> Finalizar y ordenar ({totalCount})
+            </button>
+          </>
+        )}
+      </div>
+    );
+  };
 
   return (
     <div className="w-full max-w-lg mx-auto p-4 pb-24">
@@ -401,6 +702,34 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
             Manual
           </button>
         </div>
+
+        {/* Selector de modo de escaneo */}
+        {!result && (
+          <div className="flex bg-[#161616] p-1 border-b border-[#2d2d2d] gap-1">
+            <button
+              type="button"
+              onClick={() => {
+                setScanMode('single');
+                setResult(null);
+                setError(null);
+              }}
+              className={`flex-1 py-2.5 text-[10px] font-display uppercase tracking-widest transition-all ${scanMode === 'single' ? 'bg-[#222] text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Por separado (Una a Una)
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setScanMode('multiple');
+                setResult(null);
+                setError(null);
+              }}
+              className={`flex-1 py-2.5 text-[10px] font-display uppercase tracking-widest transition-all ${scanMode === 'multiple' ? 'bg-[#222] text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+            >
+              Varias juntas (Lote)
+            </button>
+          </div>
+        )}
 
         {!manualMode ? (
           <>
@@ -436,22 +765,34 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                        <div className="absolute -bottom-1 -right-1 w-6 h-6 border-b-2 border-r-2 border-white"></div>
                        
                        <div className="absolute inset-2 border border-[#00FFFF]/20 bg-[#00FFFF]/5 flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] text-[#00FFFF]/40 font-display uppercase tracking-widest text-center leading-tight px-4">
-                             Enfoca las letras y números aquí
+                          <span className="text-[10px] text-[#00FFFF]/40 font-display uppercase tracking-widest text-center leading-tight px-4 font-bold">
+                             Enfoca el código de equipo y número
                           </span>
                        </div>
 
                        {isScanning && (
-                           <div className="absolute inset-0 border border-[#00FF00] animate-ping opacity-20"></div>
+                           <div className="absolute inset-0 border border-[#00FF00] animate-ping opacity-25"></div>
                        )}
                    </div>
                 </div>
               )}
 
+              {/* Flash green overlay on successful detection in multiple mode */}
+              {flashSuccess && (
+                <div className="absolute inset-0 bg-[#00FF00]/15 pointer-events-none transition-opacity duration-150 z-30 animate-pulse animate-duration-100" />
+              )}
+
+              {/* Floating notification for scanned sticker */}
+              {lastScannedText && (
+                <div className="absolute top-4 left-4 right-4 bg-[#00FF00] text-black text-center font-display uppercase tracking-widest text-xs py-2 font-bold px-4 z-40 rounded shadow-[0_4px_25px_rgba(0,255,0,0.35)] animate-in fade-in slide-in-from-top-2 duration-200">
+                  {lastScannedText}
+                </div>
+              )}
+
               {isScanning && !result && (
-                <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3 text-[#00FF00] bg-black/80 backdrop-blur-md px-6 py-3 w-max mx-auto border border-[#00FF00]/50 animate-pulse rounded-full z-30">
-                   <Loader2 size={18} className="animate-spin" />
-                   <span className="text-xs font-display tracking-widest uppercase">Escaneando...</span>
+                <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3 text-[#00FF00] bg-black/85 backdrop-blur-md px-6 py-2.5 w-max mx-auto border border-[#00FF00]/40 animate-pulse rounded-full z-30 shadow-lg">
+                   <Loader2 size={16} className="animate-spin" />
+                   <span className="text-[10px] font-display tracking-widest uppercase font-bold">Buscando...</span>
                 </div>
               )}
             </div>
@@ -483,14 +824,27 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                     </div>
                   )}
                   
-                  <div className="text-center">
-                    <p className="text-white font-display text-lg uppercase tracking-widest">
-                       Buscando código...
-                    </p>
-                    <p className="text-[#666] text-xs font-sans mt-2">
-                      Apunta la figurita para escanear automáticamente. Asegúrate de tener buena luz.
-                    </p>
-                  </div>
+                  {scanMode === 'single' ? (
+                    <div className="text-center">
+                      <p className="text-white font-display text-lg uppercase tracking-widest">
+                         Buscando código...
+                      </p>
+                      <p className="text-[#666] text-xs font-sans mt-2">
+                        Apunta la figurita para escanear automáticamente. Asegúrate de tener buena luz.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <p className="text-[#00FF00] font-display text-lg uppercase tracking-widest">
+                         Modo Lote Activo
+                      </p>
+                      <p className="text-gray-400 text-xs font-sans mt-1">
+                        Sostén las figuritas una por una frente al recuadro. El escáner pitará y las irá guardando en la pila de abajo.
+                      </p>
+                    </div>
+                  )}
+
+                  {renderSessionListWidget()}
                 </div>
               )}
 
@@ -531,9 +885,9 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                      )}
 
                      {isAlreadyOwned && addedToRepeated && (
-                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                             <Check size={20} /> Agregada a repetidas
-                         </div>
+                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
+                              <Check size={20} /> Agregada a repetidas
+                          </div>
                      )}
 
                      {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && !addedToRepeated && (
@@ -569,44 +923,52 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                   </div>
                 </div>
               )}
+              {result && scanMode === 'multiple' && (
+                <div className="mt-4">
+                  {renderSessionListWidget()}
+                </div>
+              )}
             </div>
           </>
         ) : (
           <div className="p-8 bg-[#151515] min-h-[400px] flex flex-col justify-center">
             
             {!result ? (
-              <form onSubmit={handleManualSubmit} className="space-y-6 animate-in fade-in zoom-in-95">
-                <div className="text-center mb-8">
-                  <TypeIcon size={48} className="mx-auto text-[#444] mb-4" />
-                  <h3 className="text-2xl font-display uppercase tracking-widest">Ingreso Manual</h3>
-                  <p className="text-[#888] font-sans text-sm mt-2">Escribe el código de la figurita</p>
-                </div>
-
-                <div>
-                  <input
-                    type="text"
-                    value={manualInput}
-                    onChange={(e) => setManualInput(e.target.value)}
-                    placeholder="Ej. ARG 10"
-                    className="w-full bg-[#111] border-2 border-[#333] text-center text-3xl font-display uppercase tracking-widest text-white py-4 rounded-xl focus:border-[#00FF00] focus:outline-none transition-colors"
-                    autoFocus
-                  />
-                </div>
-
-                {error && (
-                  <div className="text-center text-[#FF0000] text-sm font-sans bg-[#FF0000]/10 p-2 border border-[#FF0000]/20 rounded-md">
-                    {error}
+              <>
+                <form onSubmit={handleManualSubmit} className="space-y-6 animate-in fade-in zoom-in-95">
+                  <div className="text-center mb-6">
+                    <TypeIcon size={48} className="mx-auto text-[#444] mb-3" />
+                    <h3 className="text-2xl font-display uppercase tracking-widest">Ingreso Manual</h3>
+                    <p className="text-[#888] font-sans text-xs mt-1">Escribe el código de la figurita</p>
                   </div>
-                )}
 
-                <button
-                  type="submit"
-                  disabled={!manualInput.trim()}
-                  className="w-full flex items-center justify-center gap-2 bg-[#00FF00] disabled:bg-[#333] disabled:text-[#666] text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest hover:bg-white transition-all disabled:hover:bg-[#333]"
-                >
-                  Buscar
-                </button>
-              </form>
+                  <div>
+                    <input
+                      type="text"
+                      value={manualInput}
+                      onChange={(e) => setManualInput(e.target.value)}
+                      placeholder="Ej. ARG 10"
+                      className="w-full bg-[#111] border-2 border-[#333] text-center text-3xl font-display uppercase tracking-widest text-white py-4 rounded-xl focus:border-[#00FF00] focus:outline-none transition-colors"
+                      autoFocus
+                    />
+                  </div>
+
+                  {error && (
+                    <div className="text-center text-[#FF0000] text-sm font-sans bg-[#FF0000]/10 p-2 border border-[#FF0000]/20 rounded-md animate-shake">
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={!manualInput.trim()}
+                    className="w-full flex items-center justify-center gap-2 bg-[#00FF00] disabled:bg-[#333] disabled:text-[#666] text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest hover:bg-white transition-all disabled:hover:bg-[#333]"
+                  >
+                    {scanMode === 'single' ? 'Buscar' : 'Agregar a Pila'}
+                  </button>
+                </form>
+                {renderSessionListWidget()}
+              </>
             ) : (
               <div className="animate-in fade-in zoom-in-95 flex flex-col h-full justify-center">
                   <div className="text-center mb-8">
@@ -648,9 +1010,9 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                      )}
 
                      {isAlreadyOwned && addedToRepeated && (
-                         <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                             <Check size={20} /> Agregada a repetidas
-                         </div>
+                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
+                              <Check size={20} /> Agregada a repetidas
+                          </div>
                      )}
 
                      {isAlreadyOwned && updateRepeated && currentRepeatedCount > 0 && !addedToAlbum && !addedToRepeated && (
@@ -683,6 +1045,12 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                       Ingresar otra
                     </button>
                   </div>
+              </div>
+            )}
+            
+            {result && scanMode === 'multiple' && (
+              <div className="mt-4">
+                {renderSessionListWidget()}
               </div>
             )}
             
