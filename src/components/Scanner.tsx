@@ -109,10 +109,6 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
          return [...prev, { id, display, count: 1 }];
       }
     });
-
-    if (addActivity && bypassTimer) {
-      addActivity(`Agregué manualmente la figurita ${id} al lote temporal.`);
-    }
   };
   
   // ... rest of the state declarations ...
@@ -437,49 +433,28 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
   const handleMarkAsOwned = () => {
     if (result) {
+      const modeText = scanMode === 'multiple' ? ' (Lote)' : '';
+      toggleOwned(result.id, true, `Agregué la figurita ${result.id} al álbum desde el escáner${modeText}.`);
       if (scanMode === 'multiple') {
         handleScannedInSession(result.id, result.display, true);
-        setAddedToAlbum(true);
-        setTimeout(() => {
-          setResult(null);
-          setAddedToAlbum(false);
-          setAddedToRepeated(false);
-          setRemovedFromRepeated(false);
-        }, 1000);
-      } else {
-        toggleOwned(result.id, true, `Agregué la figurita ${result.id} al álbum desde el escáner.`);
-        setAddedToAlbum(true);
       }
+      setAddedToAlbum(true);
     }
   };
 
   const handleMarkAsRepeated = () => {
     if (result && updateRepeated) {
-      if (scanMode === 'multiple') {
-        handleScannedInSession(result.id, result.display, true);
-        setAddedToRepeated(true);
-        setRemovedFromRepeated(false);
-        setTimeout(() => {
-          setResult(null);
-          setAddedToAlbum(false);
-          setAddedToRepeated(false);
-          setRemovedFromRepeated(false);
-        }, 1000);
-      } else {
-        updateRepeated(result.id, 1, `Agregué una repetida de la figurita ${result.id} desde el escáner (Total: ${currentRepeatedCount + 1}).`);
-        setAddedToRepeated(true);
-        setRemovedFromRepeated(false);
-      }
+      const modeText = scanMode === 'multiple' ? ' (Lote)' : '';
+      updateRepeated(result.id, 1, `Agregué una repetida de la figurita ${result.id} desde el escáner${modeText} (Total: ${currentRepeatedCount + 1}).`);
+      setAddedToRepeated(true);
+      setRemovedFromRepeated(false);
     }
   };
 
   const handleRemoveFromRepeated = () => {
     if (result && updateRepeated) {
-      if (scanMode === 'multiple') {
-        // En lote no restamos de repetidas desde aqui
-        return;
-      }
-      updateRepeated(result.id, -1, `Saqué una repetida de la figurita ${result.id} desde el escáner (Quedan: ${Math.max(currentRepeatedCount - 1, 0)}).`);
+      const modeText = scanMode === 'multiple' ? ' (Lote)' : '';
+      updateRepeated(result.id, -1, `Saqué una repetida de la figurita ${result.id} desde el escáner${modeText} (Quedan: ${Math.max(currentRepeatedCount - 1, 0)}).`);
       setRemovedFromRepeated(true);
       setAddedToRepeated(false);
     }
@@ -542,10 +517,9 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
           <div className="space-y-3">
             <button
-              onClick={async () => {
-                if (batchSaveStickers) {
-                  const listToSave = sessionStickers.map(s => ({ id: s.id, count: s.count }));
-                  await batchSaveStickers(listToSave);
+              onClick={() => {
+                if (addActivity) {
+                  addActivity(`Terminé de organizar mi pila de ${sessionStickers.length} figuritas escaneadas.`);
                 }
                 setSessionStickers([]);
                 recentlyScannedRef.current = {};
@@ -554,7 +528,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               }}
               className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors font-bold shadow-[0_0_20px_rgba(0,255,0,0.2)]"
             >
-              <Check size={20} strokeWidth={3} /> Guardar todo en Álbum
+              <Check size={20} strokeWidth={3} /> ¡Listo, Pila Organizada!
             </button>
 
             <button
