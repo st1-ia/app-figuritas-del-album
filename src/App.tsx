@@ -287,12 +287,32 @@ export default function App() {
           </div>
         ) : (
           <>
-            {activeTab === 'album' && <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />}
-            {activeTab === 'repeated' && <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />}
-            {activeTab === 'exchange' && <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />}
-            {activeTab === 'scanner' && <Scanner ownedStickers={ownedStickers} toggleOwned={toggleOwned} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} addActivity={handleScannerAddActivity} batchSaveStickers={batchSaveStickers} />}
-            {activeTab === 'activities' && <ActivitiesList activities={activities} />}
-            {activeTab === 'settings' && <SettingsTab clearAlbum={clearAlbum} />}
+            <div className={activeTab === 'album' ? 'block' : 'hidden'}>
+              <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
+            </div>
+            <div className={activeTab === 'repeated' ? 'block' : 'hidden'}>
+              <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />
+            </div>
+            <div className={activeTab === 'exchange' ? 'block' : 'hidden'}>
+              <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />
+            </div>
+            <div className={activeTab === 'scanner' ? 'block' : 'hidden'}>
+              <Scanner 
+                ownedStickers={ownedStickers} 
+                toggleOwned={toggleOwned} 
+                repeatedStickers={repeatedStickers} 
+                updateRepeated={updateRepeated} 
+                addActivity={handleScannerAddActivity} 
+                batchSaveStickers={batchSaveStickers} 
+                isActive={activeTab === 'scanner'}
+              />
+            </div>
+            <div className={activeTab === 'activities' ? 'block' : 'hidden'}>
+              <ActivitiesList activities={activities} />
+            </div>
+            <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
+              <SettingsTab clearAlbum={clearAlbum} />
+            </div>
           </>
         )}
       </main>

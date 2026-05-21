@@ -10,9 +10,10 @@ interface ScannerProps {
   updateRepeated?: (id: string, delta: number, context?: string) => void;
   addActivity?: (text: string) => void;
   batchSaveStickers?: (stickersList: { id: string; count: number }[]) => Promise<void>;
+  isActive?: boolean;
 }
 
-export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity, batchSaveStickers }: ScannerProps) {
+export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity, batchSaveStickers, isActive = true }: ScannerProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const workerRef = useRef<Tesseract.Worker | null>(null);
@@ -29,6 +30,11 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   // Manual mode state
   const [manualMode, setManualMode] = useState<boolean>(false);
   const [manualInput, setManualInput] = useState<string>('');
+
+  // Batch / Quick manual entry states
+  const [batchManualInput, setBatchManualInput] = useState<string>('');
+  const [batchManualSuccess, setBatchManualSuccess] = useState<string | null>(null);
+  const [batchManualError, setBatchManualError] = useState<string | null>(null);
 
   // Scan modes and multiple scanning session states
   const [scanMode, setScanMode] = useState<'single' | 'multiple'>('single');
@@ -184,7 +190,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   };
 
   useEffect(() => {
-    if (!manualMode) {
+    if (isActive && !manualMode) {
       startCamera();
     } else {
       if (streamAction) {
@@ -197,7 +203,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
          streamAction.getTracks().forEach(track => track.stop());
       }
     };
-  }, [manualMode]);
+  }, [manualMode, isActive]);
 
   const parseCodeString = (input: string, strict: boolean = false) => {
     // Limpiamos los caracteres y quitamos espacios
@@ -413,7 +419,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     let active = true;
     
     const scanLoop = async () => {
-      if (!manualMode && !result && hasPermission && !isScanningRef.current && workerRef.current && !isSessionFinished) {
+      if (isActive && !manualMode && !result && hasPermission && !isScanningRef.current && workerRef.current && !isSessionFinished) {
         await captureAndAnalyze();
       }
       
@@ -422,14 +428,14 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
       }
     };
     
-    if (!manualMode && !result && hasPermission && !isSessionFinished) {
+    if (isActive && !manualMode && !result && hasPermission && !isSessionFinished) {
       scanLoop();
     }
     
     return () => {
       active = false;
     };
-  }, [manualMode, result, hasPermission, captureAndAnalyze, isSessionFinished]);
+  }, [manualMode, result, hasPermission, captureAndAnalyze, isSessionFinished, isActive]);
 
   const handleMarkAsOwned = () => {
     if (result) {
@@ -557,6 +563,68 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     );
   }
 
+  const handleBatchManualSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!batchManualInput.trim()) return;
+
+    // Support commas, semi-colons, spaces or newlines as delimiters
+    const parts = batchManualInput.split(/[,\n;]+/).map(p => p.trim()).filter(Boolean);
+    const addedList: string[] = [];
+    const repeatedList: string[] = [];
+    let invalidCount = 0;
+
+    for (const part of parts) {
+      const { foundPrefix, num } = parseCodeString(part, false);
+      if (foundPrefix) {
+        const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
+        const start = validTeam?.startNumber ?? 1;
+        if (validTeam && num >= start && num <= validTeam.count) {
+          const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`;
+          const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`;
+          
+          const isOwned = ownedStickers.has(resultId);
+          if (!isOwned) {
+            // Unowned -> Add to album & also add to sorting session stickers pile below
+            toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde ingreso manual de lote.`);
+            handleScannedInSession(resultId, display, true);
+            addedList.push(display);
+          } else {
+            // Already owned -> goes straight to repetidas and is NOT added to session stickers (pila de abajo)
+            if (updateRepeated) {
+              const currentRep = repeatedStickers ? (repeatedStickers[resultId] || 0) : 0;
+              updateRepeated(resultId, 1, `Agregué una repetida de la figurita ${resultId} desde ingreso manual de lote (Total: ${currentRep + 1}).`);
+            }
+            repeatedList.push(display);
+          }
+        } else {
+          invalidCount++;
+        }
+      } else {
+        invalidCount++;
+      }
+    }
+
+    if (addedList.length > 0 || repeatedList.length > 0 || invalidCount > 0) {
+      let msg = '';
+      if (addedList.length > 0) {
+        msg += `Agregadas al Álbum y Pila: ${addedList.join(', ')}. `;
+      }
+      if (repeatedList.length > 0) {
+        msg += `Agregadas a Repetidas (no van a la pila): ${repeatedList.join(', ')}. `;
+      }
+      if (invalidCount > 0) {
+        msg += `Ignorados por error: ${invalidCount} códigos.`;
+      }
+      setBatchManualSuccess(msg);
+      setBatchManualError(null);
+      setTimeout(() => setBatchManualSuccess(null), 6000);
+    } else {
+      setBatchManualError("No se encontraron códigos válidos. Ej: 'ARG 10, FWC 2'");
+      setBatchManualSuccess(null);
+    }
+    setBatchManualInput('');
+  };
+
   const renderSessionListWidget = () => {
     if (scanMode !== 'multiple' || isSessionFinished) return null;
     
@@ -584,11 +652,46 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
           )}
         </div>
 
+        {/* --- DEDICATED MANUAL INPUT FOR BATCH PROCESSING --- */}
+        <form onSubmit={handleBatchManualSubmit} className="mb-4 bg-black/40 border border-[#222] p-3 rounded-lg">
+          <label className="block text-[10px] uppercase tracking-widest text-[#00FF00] font-bold mb-1.5 font-display">
+             Añadir figuritas a mano al lote (Lote Manual)
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={batchManualInput}
+              onChange={(e) => setBatchManualInput(e.target.value)}
+              placeholder="Ej: ARG 10, FWC 2, BRA 12..."
+              className="flex-1 bg-black border border-[#333] text-gray-200 text-xs px-3 py-2 rounded focus:border-[#00FF00] focus:outline-none transition-colors placeholder:text-gray-600 font-sans"
+            />
+            <button
+              type="submit"
+              className="bg-[#00FF00] text-black text-[10px] font-display uppercase tracking-widest font-bold px-4 py-2 hover:bg-white transition-colors rounded"
+            >
+              Agregar
+            </button>
+          </div>
+          <p className="text-[9px] text-gray-500 mt-1 leading-normal font-sans">
+            Escribe una o varias separadas por comas. Las que te falten van al álbum y pila; las repetidas van directo a Repetidas sin tocar la pila de abajo.
+          </p>
+          {batchManualSuccess && (
+            <div className="mt-2 text-[10px] text-[#00FF00] font-sans bg-[#00FF00]/10 border border-[#00FF00]/20 p-2 rounded leading-tight">
+              {batchManualSuccess}
+            </div>
+          )}
+          {batchManualError && (
+            <div className="mt-2 text-[10px] text-red-400 font-sans bg-red-500/10 border border-red-500/20 p-2 rounded leading-tight">
+              {batchManualError}
+            </div>
+          )}
+        </form>
+
         {sessionStickers.length === 0 ? (
           <p className="text-center text-gray-600 font-sans text-xs py-5">
             {manualMode 
-              ? 'Escribe códigos y pulsa Enter para agregarlos.' 
-              : 'Apunta a las figuritas una a una para agregarlas a la pila automáticamente.'}
+              ? 'Escribe códigos arriba o en la pestaña manual y pulsa Enter para agregarlos.' 
+              : 'Apunta a las figuritas una a una o agrégalas manualmente arriba.'}
           </p>
         ) : (
           <>
