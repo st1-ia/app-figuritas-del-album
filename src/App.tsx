@@ -8,8 +8,9 @@ import Scanner from './components/Scanner';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
 import ActivitiesList from './components/ActivitiesList';
+import Sorter from './components/Sorter';
 import { getAllStickers } from './data/stickers';
-import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft, History } from 'lucide-react';
+import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft, History, ListOrdered } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
@@ -57,7 +58,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'activities' | 'settings'>('album');
+  const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'settings'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
   const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
@@ -269,14 +270,16 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-black text-white font-sans pb-20 selection:bg-[#00FF00] selection:text-black">
-      <header className="bg-[#111] shadow-md border-b border-[#333] py-5 px-4 sticky top-0 z-20">
+    <div className="min-h-screen bg-[#070707] text-white font-sans pb-24 selection:bg-[#00FF00] selection:text-black">
+      <header className="bg-[#0b0b0b]/85 backdrop-blur-xl border-b border-[#222] py-4 px-4 sticky top-0 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] relative overflow-hidden">
+         {/* Top Neon Ambient Accent */}
+         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00FF00] to-transparent shadow-[0_0_15px_#00FF00]"></div>
          <h1 className="text-xl font-display uppercase tracking-wider text-center flex flex-col items-center justify-center gap-0">
             <div className="flex items-center gap-2">
               <span className="text-white">Mundial</span> 
               <span className="text-[#00FF00]">Tracker</span>
             </div>
-            <span className="text-[8px] text-gray-500 opacity-50 tracking-[4px] mt-1">VER 1.0.3 - ACTIVITY LOGS</span>
+            <span className="text-[7.5px] text-[#00FF00]/60 font-mono tracking-[4px] mt-1 font-bold">ALBUM ORGANIZER ENGINE v1.2</span>
          </h1>
       </header>
 
@@ -310,6 +313,12 @@ export default function App() {
             <div className={activeTab === 'activities' ? 'block' : 'hidden'}>
               <ActivitiesList activities={activities} />
             </div>
+            <div className={activeTab === 'sorter' ? 'block' : 'hidden'}>
+              <Sorter 
+                addActivity={handleScannerAddActivity} 
+                isActive={activeTab === 'sorter'}
+              />
+            </div>
             <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
               <SettingsTab clearAlbum={clearAlbum} />
             </div>
@@ -318,48 +327,55 @@ export default function App() {
       </main>
 
       {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#0a0a0a] border-t border-[#222] flex justify-around items-center p-2 pb-6 shadow-[0_-10px_30px_rgba(0,0,0,0.5)] z-30">
+      <nav className="fixed bottom-0 left-0 right-0 bg-[#070707] border-t border-[#1e1e1e] flex justify-around items-center p-1.5 pb-5 md:pb-3 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] z-30 backdrop-blur-md">
         <button 
           onClick={() => setActiveTab('album')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'album' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'album' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={20} className={activeTab === 'album' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Álbum</span>
+          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Álbum</span>
         </button>
         <button 
           onClick={() => setActiveTab('repeated')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'repeated' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'repeated' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={20} className={activeTab === 'repeated' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Repetidas</span>
+          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Repetidas</span>
         </button>
         <button 
           onClick={() => setActiveTab('exchange')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'exchange' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'exchange' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={20} className={activeTab === 'exchange' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Cambiar</span>
+          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Cambiar</span>
         </button>
         <button 
           onClick={() => setActiveTab('scanner')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'scanner' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'scanner' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={20} className={activeTab === 'scanner' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Escáner</span>
+          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Escáner</span>
+        </button>
+        <button 
+          onClick={() => setActiveTab('sorter')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'sorter' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+        >
+          <ListOrdered strokeWidth={activeTab === 'sorter' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Organizar</span>
         </button>
         <button 
           onClick={() => setActiveTab('activities')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'activities' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'activities' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={20} className={activeTab === 'activities' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Actividad</span>
+          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Actividad</span>
         </button>
         <button 
           onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center w-1/6 py-2 transition-all duration-300 ${activeTab === 'settings' ? 'text-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'settings' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
         >
-          <Settings strokeWidth={activeTab === 'settings' ? 2.5 : 2} size={20} className={activeTab === 'settings' ? 'scale-110 mb-1' : 'mb-1'} />
-          <span className="text-[8px] font-bold uppercase tracking-widest">Ajustes</span>
+          <Settings strokeWidth={activeTab === 'settings' ? 2.5 : 2} size={19} className="mb-0.5" />
+          <span className="text-[7.5px] font-bold uppercase tracking-wider">Ajustes</span>
         </button>
       </nav>
     </div>

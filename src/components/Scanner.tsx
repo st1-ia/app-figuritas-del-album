@@ -759,12 +759,12 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
   return (
     <div className="w-full max-w-lg mx-auto p-4 pb-24">
-      <div className="bg-[#111] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#333] overflow-hidden">
+      <div className="bg-zinc-900/60 backdrop-blur-xl rounded-3xl border border-zinc-800/80 shadow-[0_24px_64px_rgba(0,0,0,0.65)] overflow-hidden">
         
-        <div className="flex border-b border-[#333]">
+        <div className="flex border-b border-zinc-800 bg-zinc-950/20">
           <button 
             onClick={() => setManualMode(false)}
-            className={`flex-1 p-4 font-display uppercase tracking-widest text-sm transition-colors ${!manualMode ? 'bg-[#222] text-[#00FF00]' : 'text-gray-500 hover:text-white'}`}
+            className={`flex-1 py-4.5 font-display uppercase tracking-wider text-xs transition-all cursor-pointer ${!manualMode ? 'bg-zinc-900/40 text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             Escáner OCR
           </button>
@@ -774,7 +774,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               setResult(null);
               setError(null);
             }}
-            className={`flex-1 p-4 font-display uppercase tracking-widest text-sm transition-colors ${manualMode ? 'bg-[#222] text-[#00FF00]' : 'text-gray-500 hover:text-white'}`}
+            className={`flex-1 py-4.5 font-display uppercase tracking-wider text-xs transition-all cursor-pointer ${manualMode ? 'bg-zinc-900/40 text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-zinc-500 hover:text-zinc-300'}`}
           >
             Manual
           </button>
@@ -782,7 +782,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
         {/* Selector de modo de escaneo */}
         {!result && (
-          <div className="flex bg-[#161616] p-1 border-b border-[#2d2d2d] gap-1">
+          <div className="flex bg-zinc-950 p-1 border-b border-zinc-800/80 gap-1">
             <button
               type="button"
               onClick={() => {
@@ -790,7 +790,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                 setResult(null);
                 setError(null);
               }}
-              className={`flex-1 py-2.5 text-[10px] font-display uppercase tracking-widest transition-all ${scanMode === 'single' ? 'bg-[#222] text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`flex-1 py-2.5 text-[9px] font-display uppercase tracking-widest transition-all cursor-pointer ${scanMode === 'single' ? 'bg-zinc-900 text-[#00FF00] font-bold rounded-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Por separado (Una a Una)
             </button>
@@ -801,7 +801,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                 setResult(null);
                 setError(null);
               }}
-              className={`flex-1 py-2.5 text-[10px] font-display uppercase tracking-widest transition-all ${scanMode === 'multiple' ? 'bg-[#222] text-[#00FF00] font-bold border-b-2 border-[#00FF00]' : 'text-gray-500 hover:text-gray-300'}`}
+              className={`flex-1 py-2.5 text-[9px] font-display uppercase tracking-widest transition-all cursor-pointer ${scanMode === 'multiple' ? 'bg-zinc-900 text-[#00FF00] font-bold rounded-lg' : 'text-zinc-500 hover:text-zinc-300'}`}
             >
               Varias juntas (Lote)
             </button>
@@ -813,12 +813,12 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
             <div className="relative bg-black aspect-[3/4] sm:aspect-square flex flex-col items-center justify-center overflow-hidden">
               
               {hasPermission === false && (
-                <div className="text-white text-center p-6 bg-[#111] absolute inset-0 flex flex-col items-center justify-center z-20">
-                  <AlertCircle size={48} className="text-[#FF0000] mb-4" />
+                <div className="text-white text-center p-6 bg-zinc-950 absolute inset-0 flex flex-col items-center justify-center z-20">
+                  <AlertCircle size={44} className="text-red-500 mb-4" />
                   <p className="font-sans text-sm">{error}</p>
                   <button 
                     onClick={startCamera}
-                    className="mt-6 px-6 py-3 bg-[#00FF00] text-black font-display tracking-widest uppercase rounded-none hover:bg-white transition-colors"
+                    className="mt-6 px-6 py-3 bg-[#00FF00] text-black font-display tracking-widest uppercase text-xs font-bold rounded-xl hover:bg-white transition-all cursor-pointer active:scale-95"
                   >
                     Reintentar
                   </button>
@@ -856,30 +856,30 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
               {/* Flash green overlay on successful detection in multiple mode */}
               {flashSuccess && (
-                <div className="absolute inset-0 bg-[#00FF00]/15 pointer-events-none transition-opacity duration-150 z-30 animate-pulse animate-duration-100" />
+                <div className="absolute inset-0 bg-[#00FF00]/15 pointer-events-none transition-opacity duration-150 z-30 animate-pulse" />
               )}
 
               {/* Floating notification for scanned sticker */}
               {lastScannedText && (
-                <div className="absolute top-4 left-4 right-4 bg-[#00FF00] text-black text-center font-display uppercase tracking-widest text-xs py-2 font-bold px-4 z-40 rounded shadow-[0_4px_25px_rgba(0,255,0,0.35)] animate-in fade-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-4 left-4 right-4 bg-[#00FF00] text-black text-center font-display uppercase tracking-widest text-xs py-2.5 font-bold px-4 z-40 rounded-xl shadow-[0_4px_25px_rgba(0,255,0,0.35)] animate-in fade-in slide-in-from-top-2 duration-200">
                   {lastScannedText}
                 </div>
               )}
 
               {isScanning && !result && (
-                <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3 text-[#00FF00] bg-black/85 backdrop-blur-md px-6 py-2.5 w-max mx-auto border border-[#00FF00]/40 animate-pulse rounded-full z-30 shadow-lg">
-                   <Loader2 size={16} className="animate-spin" />
-                   <span className="text-[10px] font-display tracking-widest uppercase font-bold">Buscando...</span>
+                <div className="absolute bottom-6 left-0 right-0 flex items-center justify-center gap-3 text-[#00FF00] bg-zinc-950/90 backdrop-blur-md px-6 py-2.5 w-max mx-auto border border-[#00FF00]/30 animate-pulse rounded-full z-30 shadow-lg">
+                   <Loader2 size={14} className="animate-spin" />
+                   <span className="text-[9px] font-display tracking-widest uppercase font-bold">Buscando...</span>
                 </div>
               )}
             </div>
 
-            <div className="p-6 min-h-[16rem] flex flex-col justify-center bg-[#151515]">
+            <div className="p-6 min-h-[16rem] flex flex-col justify-center bg-zinc-900/30">
               {!result && (
                 <div className="flex flex-col gap-4">
                   {zoomCaps && (
                     <div className="mb-4">
-                      <div className="flex justify-between items-center text-xs font-display text-white mb-2 uppercase tracking-widest">
+                      <div className="flex justify-between items-center text-[10px] font-display text-zinc-400 mb-2 uppercase tracking-widest">
                         <span>Zoom</span>
                         <span>{zoom.toFixed(1)}x</span>
                       </div>
@@ -890,32 +890,32 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         step={zoomCaps.step} 
                         value={zoom} 
                         onChange={handleZoomChange}
-                        className="w-full accent-[#00FF00] h-2 bg-[#333] rounded-lg appearance-none cursor-pointer"
+                        className="w-full accent-[#00FF00] h-1.5 bg-zinc-800 rounded-lg appearance-none cursor-pointer"
                       />
                     </div>
                   )}
 
                   {error && (
-                    <div className="text-center bg-[#FF0000]/10 border border-[#FF0000]/30 text-[#FF0000] p-4 text-sm font-sans tracking-wide">
+                    <div className="text-center bg-red-500/10 border border-red-500/20 text-red-400 p-4 text-xs font-sans tracking-wide rounded-xl">
                       {error}
                     </div>
                   )}
                   
                   {scanMode === 'single' ? (
                     <div className="text-center">
-                      <p className="text-white font-display text-lg uppercase tracking-widest">
+                      <p className="text-white font-display text-base uppercase tracking-wider">
                          Buscando código...
                       </p>
-                      <p className="text-[#666] text-xs font-sans mt-2">
+                      <p className="text-zinc-500 text-xs font-sans mt-2">
                         Apunta la figurita para escanear automáticamente. Asegúrate de tener buena luz.
                       </p>
                     </div>
                   ) : (
                     <div className="text-center">
-                      <p className="text-[#00FF00] font-display text-lg uppercase tracking-widest">
+                      <p className="text-[#00FF00] font-display text-base uppercase tracking-wider">
                          Modo Lote Activo
                       </p>
-                      <p className="text-gray-400 text-xs font-sans mt-1">
+                      <p className="text-zinc-400 text-xs font-sans mt-1">
                         Sostén las figuritas una por una frente al recuadro. El escáner pitará y las irá guardando en la pila de abajo.
                       </p>
                     </div>
@@ -928,16 +928,16 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               {result && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 w-full">
                   <div className="text-center mb-6">
-                     <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest">Código Detectado</span>
+                     <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest">Código Detectado</span>
                      <h3 className="text-5xl font-display text-white my-2 tracking-wide">{result.display}</h3>
                      
                      {isAlreadyOwned ? (
-                        <div className="inline-flex items-center gap-2 text-black font-display uppercase tracking-widest bg-[#00FF00] px-4 py-1 mt-2">
-                           <Check size={16} strokeWidth={3} /> ¡Ya la tienes!
+                        <div className="inline-flex items-center gap-1.5 text-black font-display uppercase tracking-widest bg-[#00FF00] text-[10px] py-1 px-3.5 rounded font-bold">
+                           <Check size={14} strokeWidth={3} /> ¡Ya la tienes!
                         </div>
                      ) : (
-                        <div className="inline-flex items-center gap-2 text-black font-display uppercase tracking-widest bg-[#FF00FF] px-4 py-1 mt-2">
-                           <AlertCircle size={16} strokeWidth={3} /> Te falta
+                        <div className="inline-flex items-center gap-1.5 text-black font-display uppercase tracking-widest bg-[#FF00FF] text-[10px] py-1 px-3.5 rounded font-bold">
+                           <AlertCircle size={14} strokeWidth={3} /> Te falta
                         </div>
                      )}
                   </div>
@@ -946,24 +946,24 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                      {!isAlreadyOwned && (
                         <button
                            onClick={handleMarkAsOwned}
-                           className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest hover:bg-white transition-colors"
+                           className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-lg uppercase tracking-wider hover:bg-white transition-all cursor-pointer font-bold active:scale-95 shadow-[0_4px_15px_rgba(0,255,0,0.15)]"
                         >
-                           <Check size={24} strokeWidth={3} /> Agregar al álbum
+                           <Check size={22} strokeWidth={3} /> Agregar al álbum
                         </button>
                      )}
                      
                      {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && !addedToRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
-                           className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                           className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-white transition-all shadow-[0_4px_15px_rgba(0,255,255,0.15)] cursor-pointer font-bold active:scale-95"
                         >
-                           <CopyPlus size={20} strokeWidth={2.5} /> Agregar a Repetidas
+                           <CopyPlus size={18} strokeWidth={2.5} /> Agregar a Repetidas
                         </button>
                      )}
 
                      {isAlreadyOwned && addedToRepeated && (
-                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                              <Check size={20} /> Agregada a repetidas
+                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-base tracking-wider uppercase bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              <Check size={18} /> Agregada a repetidas
                           </div>
                      )}
 
@@ -971,15 +971,15 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
-                              className="flex-1 flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                              className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-400 py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-red-500 hover:text-white transition-all cursor-pointer active:scale-95"
                            >
-                              <RefreshCw size={20} strokeWidth={2.5} /> Sacar (-1)
+                              <RefreshCw size={18} strokeWidth={2.5} /> Sacar (-1)
                            </button>
                            <button
                               onClick={handleMarkAsRepeated}
-                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-white transition-all cursor-pointer active:scale-95 font-bold"
                            >
-                              <CopyPlus size={20} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
+                              <CopyPlus size={18} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
                            </button>
                         </div>
                      )}
@@ -993,9 +993,9 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                            setRemovedFromRepeated(false);
                            setAddedToAlbum(false);
                         }}
-                        className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors flex-1 bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
+                        className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-base uppercase tracking-wider transition-all bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white cursor-pointer active:scale-95`}
                      >
-                        <RefreshCw size={18} /> Escanear otra
+                        <RefreshCw size={16} /> Escanear otra
                      </button>
                   </div>
                 </div>
@@ -1008,15 +1008,15 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
             </div>
           </>
         ) : (
-          <div className="p-8 bg-[#151515] min-h-[400px] flex flex-col justify-center">
+          <div className="p-8 bg-zinc-950/40 min-h-[400px] flex flex-col justify-center">
             
             {!result ? (
               <>
                 <form onSubmit={handleManualSubmit} className="space-y-6 animate-in fade-in zoom-in-95">
                   <div className="text-center mb-6">
-                    <TypeIcon size={48} className="mx-auto text-[#444] mb-3" />
-                    <h3 className="text-2xl font-display uppercase tracking-widest">Ingreso Manual</h3>
-                    <p className="text-[#888] font-sans text-xs mt-1">Escribe el código de la figurita</p>
+                    <TypeIcon size={44} className="mx-auto text-zinc-600 mb-2" />
+                    <h3 className="text-xl font-display uppercase tracking-wider">Ingreso Manual</h3>
+                    <p className="text-zinc-500 font-sans text-xs mt-1">Escribe el código de la figurita</p>
                   </div>
 
                   <div>
@@ -1025,13 +1025,13 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                       value={manualInput}
                       onChange={(e) => setManualInput(e.target.value)}
                       placeholder="Ej. ARG 10"
-                      className="w-full bg-[#111] border-2 border-[#333] text-center text-3xl font-display uppercase tracking-widest text-white py-4 rounded-xl focus:border-[#00FF00] focus:outline-none transition-colors"
+                      className="w-full bg-zinc-950/80 border border-zinc-800 text-center text-3xl font-display uppercase tracking-widest text-white py-4 rounded-2xl focus:border-[#00FF00] focus:outline-none focus:ring-1 focus:ring-[#00FF00]/40 transition-all placeholder:text-zinc-800"
                       autoFocus
                     />
                   </div>
 
                   {error && (
-                    <div className="text-center text-[#FF0000] text-sm font-sans bg-[#FF0000]/10 p-2 border border-[#FF0000]/20 rounded-md animate-shake">
+                    <div className="text-center text-red-400 text-xs font-sans bg-red-500/10 p-3 border border-red-500/20 rounded-xl animate-shake">
                       {error}
                     </div>
                   )}
@@ -1039,7 +1039,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                   <button
                     type="submit"
                     disabled={!manualInput.trim()}
-                    className="w-full flex items-center justify-center gap-2 bg-[#00FF00] disabled:bg-[#333] disabled:text-[#666] text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest hover:bg-white transition-all disabled:hover:bg-[#333]"
+                    className="w-full flex items-center justify-center gap-2 bg-[#00FF00] disabled:bg-zinc-800 disabled:text-zinc-600 text-black py-4 rounded-xl font-display text-lg uppercase tracking-wider hover:bg-white transition-all cursor-pointer font-bold active:scale-95 disabled:hover:bg-zinc-800 disabled:cursor-not-allowed"
                   >
                     {scanMode === 'single' ? 'Buscar' : 'Agregar a Pila'}
                   </button>
@@ -1049,19 +1049,19 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
             ) : (
               <div className="animate-in fade-in zoom-in-95 flex flex-col h-full justify-center">
                   <div className="text-center mb-8">
-                    <span className="text-[10px] font-bold text-[#888] uppercase tracking-widest shrink-0 block mb-2">Resultado</span>
-                    <h3 className="text-6xl font-display text-white my-2 tracking-wide">{result.display}</h3>
+                    <span className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest shrink-0 block mb-2">Resultado</span>
+                    <h3 className="text-5xl font-display text-white my-2 tracking-wide">{result.display}</h3>
                     
                     {isAlreadyOwned ? (
                       <div className="inline-flex flex-col items-center gap-2 mt-4">
-                        <div className="inline-flex items-center gap-2 text-black font-display uppercase tracking-widest bg-[#00FF00] px-4 py-1">
-                          <Check size={16} strokeWidth={3} /> ¡Ya la tienes!
+                        <div className="inline-flex items-center gap-1.5 text-black font-display uppercase tracking-widest bg-[#00FF00] text-[10px] py-1 px-3.5 rounded font-bold">
+                          <Check size={14} strokeWidth={3} /> ¡Ya la tienes!
                         </div>
                       </div>
                     ) : (
                       <div className="inline-flex flex-col items-center gap-2 mt-4">
-                        <div className="inline-flex items-center gap-2 text-black font-display uppercase tracking-widest bg-[#FF00FF] px-4 py-1">
-                          <AlertCircle size={16} strokeWidth={3} /> Te falta
+                        <div className="inline-flex items-center gap-1.5 text-black font-display uppercase tracking-widest bg-[#FF00FF] text-[10px] py-1 px-3.5 rounded font-bold">
+                          <AlertCircle size={14} strokeWidth={3} /> Te falta
                         </div>
                       </div>
                     )}
@@ -1071,24 +1071,24 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                     {!isAlreadyOwned && (
                       <button
                         onClick={handleMarkAsOwned}
-                        className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest hover:bg-white transition-colors"
+                        className="w-full flex items-center justify-center gap-2 bg-[#00FF00] text-black py-4 rounded-xl font-display text-lg uppercase tracking-wider hover:bg-white transition-all cursor-pointer active:scale-95 font-bold"
                       >
-                        <Check size={24} strokeWidth={3} /> La tengo
+                        <Check size={22} strokeWidth={3} /> La tengo
                       </button>
                     )}
                     
                     {isAlreadyOwned && updateRepeated && currentRepeatedCount === 0 && !addedToAlbum && !addedToRepeated && (
                         <button
                            onClick={handleMarkAsRepeated}
-                           className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                           className="w-full flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-white transition-all cursor-pointer active:scale-95 shadow-[0_4px_15px_rgba(0,255,255,0.15)] font-bold"
                         >
-                           <CopyPlus size={20} strokeWidth={2.5} /> Agregar a Repetidas
+                           <CopyPlus size={18} strokeWidth={2.5} /> Agregar a Repetidas
                         </button>
                      )}
 
                      {isAlreadyOwned && addedToRepeated && (
-                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg tracking-widest uppercase bg-[#333] text-gray-400">
-                              <Check size={20} /> Agregada a repetidas
+                          <div className="w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-base tracking-wider uppercase bg-zinc-800 text-zinc-400 border border-zinc-700">
+                              <Check size={18} /> Agregada a repetidas
                           </div>
                      )}
 
@@ -1096,15 +1096,15 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         <div className="flex gap-2 w-full">
                            <button
                               onClick={handleRemoveFromRepeated}
-                              className="flex-1 flex items-center justify-center gap-2 bg-[#FF0055] text-white py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white hover:text-[#FF0055] transition-colors shadow-[0_0_15px_rgba(255,0,85,0.2)]"
+                              className="flex-1 flex items-center justify-center gap-2 bg-red-500/10 border border-red-500/20 text-red-500 py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-red-500 hover:text-white transition-all cursor-pointer active:scale-95"
                            >
-                              <RefreshCw size={20} strokeWidth={2.5} /> Sacar (-1)
+                              <RefreshCw size={18} strokeWidth={2.5} /> Sacar (-1)
                            </button>
                            <button
                               onClick={handleMarkAsRepeated}
-                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-lg uppercase tracking-widest hover:bg-white transition-colors shadow-[0_0_15px_rgba(0,255,255,0.2)]"
+                              className="flex-1 flex items-center justify-center gap-2 bg-[#00FFFF] text-black py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-white transition-all cursor-pointer active:scale-95 font-bold"
                            >
-                              <CopyPlus size={20} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
+                              <CopyPlus size={18} strokeWidth={2.5} /> Otra (+{currentRepeatedCount + 1})
                            </button>
                         </div>
                      )}
@@ -1117,7 +1117,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         setRemovedFromRepeated(false);
                         setAddedToAlbum(false);
                       }}
-                      className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-lg uppercase tracking-widest transition-colors bg-[#222] text-[#AAA] hover:bg-[#333] hover:text-white`}
+                      className={`w-full flex items-center justify-center gap-2 py-4 rounded-xl font-display text-base uppercase tracking-wider transition-all bg-zinc-800 text-zinc-300 hover:bg-zinc-700 hover:text-white cursor-pointer active:scale-95`}
                     >
                       Ingresar otra
                     </button>

@@ -61,49 +61,55 @@ export default function Exchange({ executeExchange, ownedStickers }: ExchangePro
 
   return (
     <div className="w-full max-w-xl mx-auto p-4 pb-24">
-      <div className="bg-[#111] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#333] overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-300 mt-6">
-        <h2 className="text-2xl font-display uppercase tracking-wider text-white text-center mb-6">Intercambio</h2>
+      <div className="bg-zinc-900/60 backdrop-blur-xl rounded-3xl shadow-[0_24px_64px_rgba(0,0,0,0.65)] border border-zinc-800/80 overflow-hidden p-8 animate-in fade-in zoom-in-95 duration-300 mt-6 relative">
+        {/* Glow detail background */}
+        <div className="absolute -top-10 -right-10 w-24 h-24 bg-[#00FFFF]/5 rounded-full blur-3xl pointer-events-none"></div>
+
+        <h2 className="text-3xl font-display uppercase tracking-wider text-white text-center mb-4">Intercambio</h2>
         
-        <p className="text-sm text-gray-400 text-center mb-8">
-          Ingresa la figurita que entregás y la figurita que recibís. Se actualizará tu álbum y tus repetidas automáticamente.
+        <p className="text-xs text-zinc-400 text-center mb-8 leading-relaxed max-w-sm mx-auto">
+          Ingresa la figurita que entregas y la que recibes. Se actualizará tu álbum y tus repetidas de forma totalmente coordinada.
         </p>
 
         {error && (
-          <div className="mb-6 text-center bg-[#FF0000]/10 border border-[#FF0000]/30 text-[#FF0000] p-4 text-sm font-sans tracking-wide rounded-lg">
+          <div className="mb-6 text-center bg-red-500/10 border border-red-500/20 text-red-400 p-4 text-xs font-sans tracking-wide rounded-xl">
             {error}
           </div>
         )}
 
         {success && (
-          <div className="mb-6 flex flex-col items-center justify-center bg-[#00FF00]/10 border border-[#00FF00]/30 text-[#00FF00] p-4 text-sm font-sans tracking-wide rounded-lg">
-            <CheckCircle2 size={32} className="mb-2" />
-            <span>¡Intercambio realizado con éxito!</span>
+          <div className="mb-6 flex flex-col items-center justify-center bg-[#00FF00]/10 border border-[#00FF00]/20 text-[#00FF00] p-4 text-xs font-sans tracking-wide rounded-xl animate-in fade-in">
+            <CheckCircle2 size={24} className="mb-1.5 animate-bounce" />
+            <span className="font-bold">¡Intercambio realizado con éxito!</span>
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-6">
           
-          <div className="p-4 bg-[#1a1a1a] rounded-xl border border-[#333]">
-            <h3 className="text-sm font-display uppercase text-red-400 mb-4 tracking-widest text-center">Figurita que Doy</h3>
+          <div className="p-5 bg-zinc-950/40 rounded-2xl border border-zinc-800/80">
+            <h3 className="text-xs font-display uppercase text-red-500 mb-4 tracking-widest text-center flex items-center justify-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              Figurita que Doy
+            </h3>
             <div className="flex gap-4">
               <div className="flex-1">
-                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Prefijo (ej. ARG)</label>
+                <label className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1.5 font-bold">Prefijo (ARG)</label>
                 <input
                   type="text"
                   value={givenPrefix}
                   onChange={(e) => setGivenPrefix(e.target.value)}
-                  className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white uppercase font-display text-xl text-center focus:border-red-400 focus:outline-none transition-colors"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white uppercase font-display text-xl text-center focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 transition-all placeholder:text-zinc-700"
                   placeholder="ARG"
                   maxLength={3}
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Número</label>
+                <label className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1.5 font-bold">Número</label>
                 <input
                   type="number"
                   value={givenNumber}
                   onChange={(e) => setGivenNumber(e.target.value)}
-                  className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white font-display text-xl text-center focus:border-red-400 focus:outline-none transition-colors"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white font-display text-xl text-center focus:border-red-500 focus:outline-none focus:ring-1 focus:ring-red-500/30 transition-all placeholder:text-zinc-700"
                   placeholder="10"
                   min="0"
                   max="99"
@@ -112,33 +118,37 @@ export default function Exchange({ executeExchange, ownedStickers }: ExchangePro
             </div>
           </div>
 
-          <div className="flex justify-center -my-4 relative z-10">
-            <div className="bg-[#111] p-2 rounded-full border-2 border-[#333]">
-              <ArrowLeftRight size={24} className="text-gray-400" />
+          <div className="flex justify-center -my-3 relative z-10">
+            <div className="bg-zinc-900 px-3.5 py-1.5 rounded-full border border-zinc-800 flex items-center gap-1.5 shadow-md">
+              <ArrowLeftRight size={14} className="text-[#00FFFF]" />
+              <span className="text-[9px] uppercase tracking-widest font-mono text-zinc-500 font-bold">SWAP</span>
             </div>
           </div>
 
-          <div className="p-4 bg-[#1a1a1a] rounded-xl border border-[#333]">
-            <h3 className="text-sm font-display uppercase text-[#00FF00] mb-4 tracking-widest text-center">Figurita que Recibo</h3>
+          <div className="p-5 bg-zinc-950/40 rounded-2xl border border-zinc-800/80">
+            <h3 className="text-xs font-display uppercase text-[#00FF00] mb-4 tracking-widest text-center flex items-center justify-center gap-1.5">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00FF00]"></span>
+              Figurita que Recibo
+            </h3>
             <div className="flex gap-4">
               <div className="flex-1">
-                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Prefijo (ej. BRA)</label>
+                <label className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1.5 font-bold">Prefijo (BRA)</label>
                 <input
                   type="text"
                   value={receivedPrefix}
                   onChange={(e) => setReceivedPrefix(e.target.value)}
-                  className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white uppercase font-display text-xl text-center focus:border-[#00FF00] focus:outline-none transition-colors"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white uppercase font-display text-xl text-center focus:border-[#00FF00] focus:outline-none focus:ring-1 focus:ring-[#00FF00]/30 transition-all placeholder:text-zinc-700"
                   placeholder="BRA"
                   maxLength={3}
                 />
               </div>
               <div className="flex-1">
-                <label className="block text-xs uppercase tracking-wider text-gray-500 mb-1">Número</label>
+                <label className="block text-[9px] uppercase tracking-wider text-zinc-500 mb-1.5 font-bold">Número</label>
                 <input
                   type="number"
                   value={receivedNumber}
                   onChange={(e) => setReceivedNumber(e.target.value)}
-                  className="w-full bg-black border border-[#444] rounded-lg px-4 py-3 text-white font-display text-xl text-center focus:border-[#00FF00] focus:outline-none transition-colors"
+                  className="w-full bg-zinc-950/60 border border-zinc-800 rounded-xl px-4 py-3 text-white font-display text-xl text-center focus:border-[#00FF00] focus:outline-none focus:ring-1 focus:ring-[#00FF00]/30 transition-all placeholder:text-zinc-700"
                   placeholder="9"
                   min="0"
                   max="99"
@@ -149,31 +159,31 @@ export default function Exchange({ executeExchange, ownedStickers }: ExchangePro
 
           <button
             type="submit"
-            className="w-full mt-8 bg-[#00FFFF] hover:bg-white text-black py-4 rounded-xl font-display text-xl uppercase tracking-widest transition-colors shadow-[0_0_20px_rgba(0,255,255,0.3)] flex justify-center items-center gap-3"
+            className="w-full mt-4 bg-[#00FFFF] hover:bg-[#00FFFF]/80 text-black py-4 rounded-xl font-display text-lg uppercase tracking-wider transition-all shadow-[0_4px_20px_rgba(0,255,255,0.2)] flex justify-center items-center gap-2.5 font-bold hover:scale-[1.01] active:scale-95 cursor-pointer"
           >
-            <ArrowLeftRight size={24} strokeWidth={2.5} /> Confirmar Cambio
+            <ArrowLeftRight size={20} strokeWidth={2.5} /> Confirmar Cambio
           </button>
         </form>
       </div>
 
       {confirmData && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
-          <div className="bg-[#111] border border-[#333] rounded-xl p-6 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
-            <h3 className="text-xl font-display uppercase text-white mb-4">¿Confirmar cambio?</h3>
-            <p className="text-gray-400 mb-6">
-              Ya tenés la figurita recibida <strong className="text-white">{confirmData.receivedId}</strong>. 
-              Si aceptás el cambio, la figurita entregada <strong className="text-white">{confirmData.givenId}</strong> se descontará de tus repetidas y la recibida se agregará a tus repetidas.
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50 backdrop-blur-sm">
+          <div className="bg-zinc-950/95 border border-zinc-800 rounded-2xl p-6.5 max-w-sm w-full shadow-2xl animate-in zoom-in-95 duration-200">
+            <h3 className="text-xl font-display uppercase text-white mb-2 tracking-wide">¿Confirmar cambio?</h3>
+            <p className="text-xs text-zinc-400 mb-6 leading-relaxed">
+              Ya tienes la figurita recibida <strong className="text-white bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded font-mono text-[10px]">{confirmData.receivedId}</strong>. 
+              Si aceptas el cambio, la entregada <strong className="text-white bg-zinc-900 border border-zinc-800 px-1.5 py-0.5 rounded font-mono text-[10px]">{confirmData.givenId}</strong> se descontará de tus repetidas y la recibida se agregará también a ellas.
             </p>
             <div className="flex gap-4">
               <button
                 onClick={() => setConfirmData(null)}
-                className="flex-1 bg-[#222] hover:bg-[#333] text-white py-3 rounded-lg font-display uppercase tracking-widest transition-colors"
+                className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white py-3 rounded-lg font-display uppercase tracking-widest transition-colors cursor-pointer"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => performExchange(confirmData.givenId, confirmData.receivedId)}
-                className="flex-1 bg-[#00FF00] hover:bg-white text-black py-3 rounded-lg font-display uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(0,255,0,0.2)]"
+                className="flex-1 bg-[#00FF00] hover:bg-white text-black py-3 rounded-lg font-display uppercase tracking-widest transition-colors shadow-[0_0_15px_rgba(0,255,0,0.25)] font-bold cursor-pointer"
               >
                 Aceptar
               </button>
