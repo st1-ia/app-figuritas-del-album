@@ -492,7 +492,6 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
           <div className="space-y-2.5 my-6 max-h-[350px] overflow-y-auto pr-1">
             {sortedStickers.map((item, idx) => {
-              const hasSticker = ownedStickers.has(item.id);
               const teamName = WORLD_CUP_TEAMS.find(t => t.prefix === item.id.split('-')[0])?.name || 'Especial';
               return (
                 <div key={item.id} className="flex items-center gap-3 p-3 bg-black/40 border border-[#222] rounded-lg">
@@ -512,8 +511,8 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                   </div>
                   
                   <div className="text-right">
-                    <span className={`text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded inline-block ${hasSticker ? 'bg-[#00FF00]/10 text-[#00FF00] border border-[#00FF00]/20' : 'bg-[#FF00FF]/10 text-[#FF00FF] border border-[#FF00FF]/25'}`}>
-                      {hasSticker ? 'Repetida' : 'Nueva'}
+                    <span className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded inline-block bg-[#00FF00]/10 text-[#00FF00] border border-[#00FF00]/20">
+                      A Pegar
                     </span>
                   </div>
                 </div>
