@@ -1,14 +1,79 @@
-@import url('https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700;800&display=swap');
 @import "tailwindcss";
 
 @theme {
   --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-display: "Anton", sans-serif;
+  --font-display: "Outfit", sans-serif;
   
-  --color-world-cup-dark: #000000;
-  --color-world-cup-neon: #00FF00;
-  --color-world-cup-pink: #FF00FF;
-  --color-world-cup-blue: #00FFFF;
-  --color-world-cup-red: #FF0000;
-  --color-coca-cola: #F40009;
+  --color-neon-cyan: #00f3ff;
+  --color-neon-green: #39ff14;
+  --color-neon-pink: #ff007f;
+  --color-neon-purple: #bd00ff;
+}
+
+body {
+  background-color: #000000;
+  color: #f5f5f5;
+}
+
+/* Custom minimal scrollbar to look sleek, dark and neon */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #000000;
+}
+::-webkit-scrollbar-thumb {
+  background: #00f3ff;
+  border-radius: 9999px;
+  box-shadow: 0 0 6px rgba(0, 243, 255, 0.5);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #39ff14;
+  box-shadow: 0 0 8px rgba(57, 255, 20, 0.8);
+}
+
+/* Focus and input resets */
+input:focus, textarea:focus {
+  outline: none;
+}
+
+/* Custom Neon Glow Text Helper Classes */
+.text-neon-cyan-glow {
+  text-shadow: 0 0 8px rgba(0, 243, 255, 0.6), 0 0 15px rgba(0, 243, 255, 0.3);
+}
+
+.text-neon-green-glow {
+  text-shadow: 0 0 8px rgba(57, 255, 20, 0.6), 0 0 15px rgba(57, 255, 20, 0.3);
+}
+
+.text-neon-pink-glow {
+  text-shadow: 0 0 8px rgba(255, 0, 127, 0.6), 0 0 15px rgba(255, 0, 127, 0.3);
+}
+
+.text-neon-glow {
+  text-shadow: 0 0 8px currentColor, 0 0 15px currentColor;
+}
+
+/* Neon animated border scanline */
+@keyframes neon-pulse {
+  0%, 100% {
+    opacity: 0.3;
+    box-shadow: 0 0 5px rgba(0, 243, 255, 0.2);
+  }
+  50% {
+    opacity: 1;
+    box-shadow: 0 0 15px rgba(0, 243, 255, 0.6);
+  }
+}
+
+.neon-glow-card {
+  box-shadow: 0 0 15px rgba(0, 243, 255, 0.1);
+  border-color: rgba(0, 243, 255, 0.2);
+}
+
+.neon-glow-card:hover {
+  box-shadow: 0 0 20px rgba(0, 243, 255, 0.25);
+  border-color: rgba(0, 243, 255, 0.4);
 }

@@ -1,13 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
-import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2 } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, TrendingUp, Trophy, Library, Percent, FileQuestion, Users, Sparkles } from 'lucide-react';
 
 interface AlbumProps {
   ownedStickers: Set<string>;
+  repeatedStickers?: Record<string, number>;
   toggleOwned: (id: string) => void;
 }
 
-export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
+export default function Album({ ownedStickers, repeatedStickers, toggleOwned }: AlbumProps) {
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
@@ -70,41 +71,163 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
     );
   }, [searchQuery]);
 
+  // Comprehensive statistic outputs
+  const stats = useMemo(() => {
+    const total = stickers.length;
+    const owned = ownedStickers.size;
+    const missing = total - owned;
+    const ownedPercent = total > 0 ? ((owned / total) * 100).toFixed(1) : '0';
+    const missingPercent = total > 0 ? ((missing / total) * 100).toFixed(1) : '0';
+
+    // Sum of duplicates
+    let duplicatesCount = 0;
+    if (repeatedStickers) {
+      Object.values(repeatedStickers).forEach(count => {
+        duplicatesCount += (count || 0);
+      });
+    }
+
+    // Fully completed sections/teams out of 50 total sections
+    let completedGroupsCount = 0;
+    WORLD_CUP_TEAMS.forEach(team => {
+      const teamStickers = stickersByTeam.get(team.id) || [];
+      const ownedInTeam = teamStickers.filter(s => ownedStickers.has(s.id)).length;
+      if (ownedInTeam === teamStickers.length && teamStickers.length > 0) {
+        completedGroupsCount++;
+      }
+    });
+
+    // FIFA Especial / FWC specific progress
+    const fwcStickers = stickersByTeam.get('fwc') || [];
+    const fwcOwned = fwcStickers.filter(s => ownedStickers.has(s.id)).length;
+    const fwcPct = fwcStickers.length > 0 ? ((fwcOwned / fwcStickers.length) * 100).toFixed(0) : '0';
+
+    // Coca Cola / CC specific progress
+    const cocStickers = stickersByTeam.get('coc') || [];
+    const cocOwned = cocStickers.filter(s => ownedStickers.has(s.id)).length;
+    const cocPct = cocStickers.length > 0 ? ((cocOwned / cocStickers.length) * 100).toFixed(0) : '0';
+
+    return {
+      total,
+      owned,
+      missing,
+      ownedPercent,
+      missingPercent,
+      duplicatesCount,
+      completedGroupsCount,
+      fwcOwned,
+      fwcTotal: fwcStickers.length,
+      fwcPct,
+      cocOwned,
+      cocTotal: cocStickers.length,
+      cocPct
+    };
+  }, [stickers, ownedStickers, repeatedStickers, stickersByTeam]);
+
   return (
-    <div className="w-full max-w-4xl mx-auto pb-24">
-      {/* Premium Dashboard Banner */}
-      <div className="px-6 py-6 bg-zinc-900/60 backdrop-blur-xl shadow-2xl rounded-2xl border border-zinc-800/80 mb-8 sticky top-[72px] z-10">
+    <div className="w-full max-w-4xl mx-auto pb-24 text-neutral-100 font-sans">
+      
+      {/* Banner / Header Card - STRICTLY NOT STICKY AS PER USER REQUEST */}
+      <div className="px-6 py-6 bg-neutral-950/70 border border-neutral-900 rounded-2xl shadow-[0_0_15px_rgba(0,243,255,0.05)] neon-glow-card mb-6">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
           <div className="flex flex-col">
-            <h2 className="text-3xl font-display uppercase tracking-wider text-white mb-2">Mi Álbum</h2>
+            <span className="text-[9.5px] font-bold text-neutral-500 uppercase tracking-widest mb-1 font-mono">Resumen de Colección Colectiva</span>
+            <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white flex items-center gap-2">
+              Mi Álbum <span className="text-[10px] bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 py-0.5 px-2 rounded-full font-mono font-bold uppercase tracking-wider text-neon-cyan-glow">En Línea</span>
+            </h2>
+            
             <button 
               onClick={copyMissingStickers}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#00FF00] hover:text-white transition-all bg-[#00FF00]/10 hover:bg-[#00FF00]/20 py-2.5 px-4 rounded-xl border border-[#00FF00]/20 w-fit cursor-pointer active:scale-95"
+              className="mt-3 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-neutral-300 hover:text-neon-cyan hover:border-neon-cyan/50 hover:bg-neon-cyan/5 bg-neutral-900/50 py-2 px-3.5 rounded-lg border border-neutral-800 w-fit cursor-pointer transition-all duration-200 active:scale-95 shadow-xs"
             >
-              {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-              {copied ? 'Copiado al portapapeles' : 'Copiar Faltantes'}
+              {copied ? <CheckCircle2 size={13} className="text-neon-green" /> : <Copy size={13} />}
+              {copied ? 'Copiado' : 'Copiar Faltantes'}
             </button>
           </div>
-          <div className="text-left sm:text-right">
-            <span className="text-4xl font-display text-[#00FF00] block leading-none drop-shadow-[0_0_12px_rgba(0,255,0,0.4)]">{ownedStickers.size}</span>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mt-1">de {stickers.length} cromos coleccionados</span>
+          <div className="text-left sm:text-right flex flex-col">
+            <span className="text-4xl font-display font-black text-neon-cyan text-neon-cyan-glow block leading-none">
+              {stats.owned}
+            </span>
+            <span className="text-[10px] font-medium text-neutral-400 uppercase tracking-wider block mt-1">
+              de <span className="text-white font-black">{stats.total}</span> pegados ({stats.ownedPercent}%)
+            </span>
           </div>
         </div>
         
-        <div className="mt-3 w-full bg-zinc-950 rounded-full h-2.5 overflow-hidden relative mb-6 border border-zinc-800/60">
+        {/* Progress Bar of Completed stickers */}
+        <div className="w-full bg-neutral-950 rounded-full h-2 overflow-hidden mb-6 border border-neutral-900 p-[1px]">
           <div 
-            className="absolute top-0 left-0 bottom-0 bg-gradient-to-r from-[#00FF00] via-[#00FFFF] to-[#00FF00] bg-[length:200%_auto] animate-[shimmer_3s_infinite_linear] transition-all duration-700 ease-out rounded-full"
-            style={{ width: `${(ownedStickers.size / stickers.length) * 100}%` }}
-          ></div>
+            className="h-full bg-gradient-to-r from-neon-cyan to-neon-green shadow-[0_0_8px_#00f3ff] transition-all duration-750 ease-out rounded-full"
+            style={{ width: `${Math.max(1.5, (stats.owned / stats.total) * 100)}%` }}
+          />
+        </div>
+
+        {/* STATS DECK GRID (DIFFERENT STATISTICS) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 pt-3 border-t border-neutral-900">
+          
+          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Faltantes</span>
+              <FileQuestion size={13} className="text-neon-pink" />
+            </div>
+            <div>
+              <span className="text-xl font-display font-bold text-white block">
+                {stats.missing} <span className="text-xs font-normal text-neutral-500 font-mono">({stats.missingPercent}%)</span>
+              </span>
+              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Por Conseguir</span>
+            </div>
+          </div>
+
+          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Completados</span>
+              <Users size={13} className="text-neon-cyan" />
+            </div>
+            <div>
+              <span className="text-xl font-display font-bold text-white block">
+                {stats.completedGroupsCount} <span className="text-xs font-normal text-neutral-500 font-mono">/ {WORLD_CUP_TEAMS.length}</span>
+              </span>
+              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Grupos al 100%</span>
+            </div>
+          </div>
+
+          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Especial FIFA</span>
+              <Trophy size={13} className="text-amber-500" />
+            </div>
+            <div>
+              <span className="text-xl font-display font-bold text-white block">
+                {stats.fwcOwned} <span className="text-xs font-normal text-neutral-500 font-mono">/ {stats.fwcTotal} ({stats.fwcPct}%)</span>
+              </span>
+              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Brillantes FWC</span>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Coca-Cola Specials Sub-Statistic bar */}
+        <div className="mb-5 bg-neutral-950/60 p-3.5 rounded-xl border border-red-950/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-[0_0_12px_rgba(239,68,68,0.05)]">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_6px_rgba(239, 68, 68, 0.8)]"></div>
+            <span className="text-xs font-bold text-red-500 uppercase tracking-wide">Especiales Coca-Cola (CC)</span>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="w-24 bg-neutral-900 rounded-full h-1.5 overflow-hidden p-[1px] border border-red-950/60">
+              <div className="bg-red-600 h-full rounded-full shadow-[0_0_6px_#dc2626]" style={{ width: `${stats.cocPct}%` }} />
+            </div>
+            <span className="text-xs font-mono font-bold text-red-500">{stats.cocOwned} de {stats.cocTotal} pegadas ({stats.cocPct}%)</span>
+          </div>
         </div>
         
+        {/* Search - MUST prevent autozoom in mobile with input font size of 16px (text-[16px]) */}
         <div className="relative">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search size={18} className="text-zinc-500" />
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={14} className="text-neutral-500" />
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-10 py-3.5 border border-zinc-800 rounded-xl bg-zinc-950/70 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-[#00FF00] focus:ring-1 focus:ring-[#00FF00] text-sm transition-all font-sans"
+            className="block w-full pl-9 pr-9 py-2.5 border border-neutral-850 rounded-xl bg-neutral-950/60 text-neutral-200 placeholder-neutral-500 focus:outline-none focus:border-neon-cyan focus:bg-neutral-900/40 text-[16px] md:text-sm transition-all font-sans focus:shadow-[0_0_12px_rgba(0,243,255,0.15)]"
             placeholder="Buscar por equipo o prefijo (ej. ARG)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -112,17 +235,18 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute inset-y-0 right-0 pr-3.5 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
-              <X size={18} className="text-zinc-500 hover:text-white transition-colors" />
+              <X size={14} className="text-neutral-500 hover:text-neutral-300 transition-colors" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="px-2 space-y-4">
+      {/* Main Teams List */}
+      <div className="space-y-3 animate-in fade-in duration-300">
         {filteredTeams.length === 0 && (
-          <div className="text-center py-10 text-zinc-500 font-sans">
+          <div className="text-center py-10 text-neutral-500 font-sans border border-neutral-800 border-dashed rounded-xl bg-neutral-950/40 p-6">
             No se encontraron equipos para "{searchQuery}"
           </div>
         )}
@@ -133,62 +257,74 @@ export default function Album({ ownedStickers, toggleOwned }: AlbumProps) {
           const ownedInTeam = getTeamProgress(team.id);
           const isComplete = ownedInTeam === teamStickers.length;
           const isCC = team.prefix === 'CC'; // Coca cola uses red
-          const accentColor = isCC ? 'text-[#F40009]' : 'text-[#00FF00]';
-          const bgAccentLight = isCC ? 'bg-[#F40009]/15' : 'bg-[#00FF00]/12';
-          const bgAccentHover = isCC ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-800/40';
+          
+          const accentColor = isComplete ? 'text-neon-green text-neon-green-glow font-black' : 'text-neutral-200';
+          const bgAccentLight = isComplete ? 'bg-neutral-950/35 hover:bg-neutral-950/65' : 'bg-transparent hover:bg-neutral-900/35';
+          const badgeCompleteBg = isComplete 
+            ? 'bg-neon-green/10 border-neon-green/30 text-neon-green shadow-[0_0_8px_rgba(57,255,20,0.15)] text-neon-green-glow' 
+            : 'bg-neutral-900/80 border-neutral-800 text-neutral-500';
 
           return (
-            <div key={team.id} className="bg-zinc-900/40 rounded-2xl overflow-hidden border border-zinc-800/80 transition-all duration-300 hover:border-zinc-700/80 hover:shadow-lg">
+            <div key={team.id} className="bg-neutral-950/45 rounded-xl border border-neutral-900 overflow-hidden transition-all duration-250 hover:border-neutral-850 hover:shadow-[0_0_15px_rgba(0,0,0,0.5)]">
               <button
-                className={`w-full px-5 py-5 flex items-center justify-between transition-all duration-200 cursor-pointer ${bgAccentHover} ${isComplete ? bgAccentLight : ''}`}
+                className={`w-full px-5 py-4 flex items-center justify-between transition-all duration-150 cursor-pointer ${bgAccentLight}`}
                 onClick={() => setExpandedTeam(isExpanded ? null : team.id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${isComplete ? `border-transparent ${bgAccentLight} ${accentColor}` : 'border-zinc-800 text-zinc-400 BG-zinc-900'}`}>
-                    {isComplete ? <Check size={20} className="stroke-[3]" /> : <span className="text-xs font-display tracking-wider uppercase">{team.prefix}</span>}
+                <div className="flex items-center gap-3.5">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-mono font-bold ${badgeCompleteBg}`}>
+                    {isComplete ? (
+                      <Check size={14} className="stroke-[3] text-neon-green" />
+                    ) : (
+                      <span className="text-[10px] uppercase font-black text-neutral-500">{team.prefix}</span>
+                    )}
                   </div>
-                  <span className={`font-semibold text-base sm:text-lg transition-colors ${isComplete ? 'text-white' : 'text-zinc-300'}`}>{team.name}</span>
+                  <div className="flex flex-col items-start leading-tight">
+                    <span className={`font-display font-semibold text-sm sm:text-base ${isComplete ? 'text-neon-green text-neon-green-glow font-black' : 'text-neutral-200 font-medium'}`}>{team.name}</span>
+                    <span className="text-[7.5px] uppercase tracking-wider text-neutral-500 font-mono font-bold mt-0.5">Grupo {team.id === 'fwc' || team.id === 'coc' ? 'Especial' : team.id.toUpperCase()}</span>
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-end">
-                     <span className={`text-xl font-display leading-none transition-colors ${isComplete ? accentColor : 'text-white'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end leading-none">
+                     <span className={`text-xl font-display font-black ${isComplete ? 'text-neon-green text-neon-green-glow' : 'text-neutral-100'}`}>
                        {ownedInTeam}
                      </span>
-                     <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-bold">de {teamStickers.length}</span>
+                     <span className="text-[7.5px] uppercase tracking-wider text-neutral-500 font-bold mt-0.5">de {teamStickers.length}</span>
                   </div>
-                  {isExpanded ? <ChevronDown size={22} className="text-zinc-500" /> : <ChevronRight size={22} className="text-zinc-500" />}
+                  {isExpanded ? <ChevronDown size={14} className="text-neutral-500" /> : <ChevronRight size={14} className="text-neutral-500" />}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="p-5 bg-zinc-950/60 border-t border-zinc-800 grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                <div className="p-4 bg-neutral-950/90 border-t border-neutral-900 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 gap-2 animate-in slide-in-from-top-1 duration-200">
                   {teamStickers.map((sticker) => {
                     const number = sticker.number === 0 ? '00' : sticker.number;
                     const stickerId = sticker.id;
                     const isOwned = ownedStickers.has(stickerId);
                     
-                    const stickerColorClass = isCC 
-                      ? 'from-[#F40009]/15 to-[#F40009]/3 border-[#F40009]/60 hover:from-[#F40009]/20 shadow-[0_0_15px_rgba(244,0,9,0.15)]' 
-                      : 'from-[#00FF00]/15 to-transparent border-[#00FF00]/60 hover:from-[#00FF00]/20 shadow-[0_0_15px_rgba(0,255,0,0.15)]';
-                    const checkColorClass = isCC ? 'bg-[#F40009] text-white' : 'bg-[#00FF00] text-black';
+                    const stickerStyle = isOwned
+                      ? isCC
+                        ? 'bg-red-950/30 border-red-500/40 text-red-400 font-bold shadow-[0_0_6px_rgba(239,68,68,0.15)]'
+                        : 'bg-neon-green/5 border-neon-green/45 text-neon-green font-bold shadow-[0_0_8px_rgba(57,255,20,0.15)] text-neon-green-glow'
+                      : 'bg-neutral-950/50 border-neutral-900 text-neutral-600 hover:border-neutral-800 hover:text-neutral-400';
+                    
+                    const checkIconBg = isCC ? 'bg-red-600 text-white' : 'bg-neon-green text-black font-black shadow-[0_0_6px_#39ff14]';
 
                     return (
                       <button
                         key={stickerId}
                         onClick={() => toggleOwned(stickerId)}
                         className={`
-                          relative flex flex-col items-center justify-center p-2 rounded-xl py-4 border-2 transition-all duration-200 uppercase tracking-wider overflow-hidden cursor-pointer active:scale-95
-                          ${isOwned 
-                            ? `bg-gradient-to-b ${stickerColorClass} scale-102 font-bold` 
-                            : 'bg-zinc-950/40 border-zinc-800/80 text-zinc-500 hover:border-zinc-700/80 hover:text-zinc-300 hover:bg-zinc-900/60'}
+                          relative flex flex-col items-center justify-center p-2 rounded-lg py-2.5 border transition-all duration-150 uppercase tracking-wider overflow-hidden cursor-pointer active:scale-95 text-xs
+                          ${stickerStyle}
                         `}
                       >
-                        <span className={`text-[8px] font-bold ${isOwned ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : 'text-zinc-600'}`}>{sticker.prefix}</span>
-                        <span className={`text-xl font-display mt-0.5 ${isOwned ? 'text-white' : 'text-zinc-400'}`}>{number}</span>
+                        <span className={`text-[7px] font-mono font-bold tracking-tight mb-0.5 ${isOwned ? (isCC ? 'text-red-400' : 'text-neon-cyan') : 'text-neutral-600'}`}>{sticker.prefix}</span>
+                        <span className={`text-base font-display font-black leading-none ${isOwned ? 'text-white' : 'text-neutral-500'}`}>{number}</span>
+                        
                         {isOwned && (
-                          <div className={`absolute top-0 right-0 w-5.5 h-5.5 flex items-center justify-center rounded-bl-lg ${checkColorClass}`}>
-                            <Check size={10} strokeWidth={4} />
+                          <div className={`absolute top-0 right-0 w-3.5 h-3.5 flex items-center justify-center rounded-bl-sm text-xs ${checkIconBg}`}>
+                            <Check size={8} strokeWidth={4} />
                           </div>
                         )}
                       </button>

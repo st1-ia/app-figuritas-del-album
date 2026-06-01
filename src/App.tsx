@@ -5,38 +5,18 @@
 import React, { useState, useEffect } from 'react';
 import Album from './components/Album';
 import Scanner from './components/Scanner';
-import Repeated from './components/Repeated';
-import Exchange from './components/Exchange';
 import ActivitiesList from './components/ActivitiesList';
 import Sorter from './components/Sorter';
 import { getAllStickers } from './data/stickers';
-import { BookOpen, ScanLine, Settings, CheckCircle2, CopyPlus, ArrowRightLeft, History, ListOrdered } from 'lucide-react';
+import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, History, ListOrdered, Settings, Trophy } from 'lucide-react';
+import Missing from './components/Missing';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
-import { doc, getDoc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
+import { doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
 export interface ActivityLog {
   id: string;
   text: string;
   timestamp: number;
-}
-
-function SettingsTab({ clearAlbum }: { clearAlbum: () => void }) {
-  return (
-    <div className="w-full max-w-xl mx-auto p-4 pb-24">
-      <div className="bg-[#111] rounded-xl shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-[#333] overflow-hidden p-6 animate-in fade-in zoom-in-95 duration-300">
-        <h2 className="text-2xl font-display uppercase tracking-wider text-white text-center mb-6">Ajustes</h2>
-        
-        <div className="space-y-6">
-          <div className="p-4 bg-[#1a1a1a] rounded-lg border border-[#333] flex items-center justify-between">
-            <div>
-              <h3 className="text-lg font-display uppercase text-[#00FF00] mb-1">Álbum Global</h3>
-              <p className="text-xs text-gray-400">Todos los dispositivos comparten la misma colección sin necesidad de iniciar sesión.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 const serializeRepeated = (record: Record<string, number>): string[] => {
@@ -58,7 +38,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'settings'>('album');
+  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'scanner' | 'sorter' | 'activities'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
   const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
@@ -68,7 +48,6 @@ export default function App() {
   useEffect(() => {
     const docRef = doc(db, 'albums', 'global');
     
-    // Subscribe to realtime updates
     const unsubscribe = onSnapshot(docRef, (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -116,20 +95,9 @@ export default function App() {
 
   const addActivity = async (text: string) => {
     const newActivity: ActivityLog = { id: Date.now().toString() + Math.random(), text, timestamp: Date.now() };
-    const nextActivities = [newActivity, ...activities].slice(0, 50); // Keep last 50 activities
+    const nextActivities = [newActivity, ...activities].slice(0, 50); 
     setActivities(nextActivities);
-    // Don't call persistToDB here separately if we're calling it from a state modifier, to avoid race conditions.
-    // Instead return nextActivities to pass inside persistToDB
     return nextActivities;
-  };
-
-  const clearAlbum = async () => {
-    const emptyOwned = new Set<string>();
-    const emptyRepeated: Record<string, number> = {};
-    const nextActivities = await addActivity('Se borró el álbum entero.');
-    setOwnedStickers(emptyOwned);
-    setRepeatedStickers(emptyRepeated);
-    await persistToDB(emptyOwned, emptyRepeated, nextActivities);
   };
 
   const toggleOwned = async (id: string, forceStatus?: boolean, sourceContext?: string) => {
@@ -257,7 +225,6 @@ export default function App() {
     setOwnedStickers(nextOwned);
     setRepeatedStickers(nextRepeated);
     
-    // Create a detailed dynamic activity text with some sticker names
     const sampleStickers = stickersList.slice(0, 3).map(s => s.id).join(', ') + (stickersList.length > 3 ? '...' : '');
     const activityText = `Escaneo múltiple finalizado: se procesaron ${stickersList.length} figuritas (${sampleStickers}). Se agregaron ${addedCount} al álbum y ${repeatedCount} a repetidas.`;
     const nextActivities = await addActivity(activityText);
@@ -270,34 +237,50 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#070707] text-white font-sans pb-24 selection:bg-[#00FF00] selection:text-black">
-      <header className="bg-[#0b0b0b]/85 backdrop-blur-xl border-b border-[#222] py-4 px-4 sticky top-0 z-40 shadow-[0_10px_30px_rgba(0,0,0,0.6)] relative overflow-hidden">
-         {/* Top Neon Ambient Accent */}
-         <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-[#00FF00] to-transparent shadow-[0_0_15px_#00FF00]"></div>
-         <h1 className="text-xl font-display uppercase tracking-wider text-center flex flex-col items-center justify-center gap-0">
-            <div className="flex items-center gap-2">
-              <span className="text-white">Mundial</span> 
-              <span className="text-[#00FF00]">Tracker</span>
-            </div>
-            <span className="text-[7.5px] text-[#00FF00]/60 font-mono tracking-[4px] mt-1 font-bold">ALBUM ORGANIZER ENGINE v1.2</span>
-         </h1>
+    <div className="min-h-screen bg-black text-neutral-100 font-sans pb-32 selection:bg-neon-cyan selection:text-black">
+
+      {/* Header Bar */}
+      <header className="bg-neutral-950/80 backdrop-blur-md border-b border-neutral-900 py-3.5 px-4 md:px-8 sticky top-0 z-40 shadow-[0_0_15px_rgba(0,243,255,0.1)]">
+         <div className="max-w-5xl mx-auto flex items-center justify-between">
+           
+           {/* Logo and Brand */}
+           <div className="flex items-center gap-2.5">
+             <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-neutral-900 border border-neon-cyan/40 text-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.2)]">
+               <Trophy size={15} strokeWidth={2.5} />
+             </div>
+             <div className="flex flex-col">
+               <div className="flex items-center gap-1 leading-none">
+                 <span className="text-base font-display font-black tracking-tight text-white flex items-center gap-1">
+                   COPA <span className="text-neon-cyan text-neon-cyan-glow">TRACKER</span>
+                 </span>
+               </div>
+               <span className="text-[7.5px] text-neutral-400 font-mono tracking-wider mt-0.5 uppercase font-medium">Panel de Colección</span>
+             </div>
+           </div>
+
+           {/* Cloud Sync Status */}
+           <div className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 px-2.5 py-1 rounded-full select-none">
+             <span className="relative flex h-1.5 w-1.5">
+               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green shadow-[0_0_6px_#39ff14]"></span>
+             </span>
+             <span className="text-[9px] font-medium tracking-wide text-neutral-400 uppercase">Sincronizado</span>
+           </div>
+
+         </div>
       </header>
 
-      <main className="w-full mx-auto p-4 sm:p-6 lg:p-8">
-        {!isLoaded ? (
-          <div className="flex justify-center p-12">
-            <div className="w-8 h-8 border-4 border-[#00FF00] border-t-transparent rounded-full animate-spin"></div>
+      {/* Main Content Pane */}
+      <main className="w-full max-w-5xl mx-auto p-4 sm:p-6 lg:p-8 relative z-10 select-none">
+         {!isLoaded ? (
+          <div className="flex flex-col justify-center items-center py-40 gap-3">
+            <div className="w-10 h-10 border-2 border-neutral-800 border-t-neon-cyan rounded-full animate-spin shadow-[0_0_10px_rgba(0,243,255,0.2)]"></div>
+            <p className="text-[10px] uppercase tracking-widest text-neon-cyan font-mono text-neon-cyan-glow">Sincronizando...</p>
           </div>
         ) : (
-          <>
+          <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
             <div className={activeTab === 'album' ? 'block' : 'hidden'}>
-              <Album ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
-            </div>
-            <div className={activeTab === 'repeated' ? 'block' : 'hidden'}>
-              <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />
-            </div>
-            <div className={activeTab === 'exchange' ? 'block' : 'hidden'}>
-              <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />
+              <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} />
             </div>
             <div className={activeTab === 'scanner' ? 'block' : 'hidden'}>
               <Scanner 
@@ -319,66 +302,57 @@ export default function App() {
                 isActive={activeTab === 'sorter'}
               />
             </div>
-            <div className={activeTab === 'settings' ? 'block' : 'hidden'}>
-              <SettingsTab clearAlbum={clearAlbum} />
+            <div className={activeTab === 'missing' ? 'block' : 'hidden'}>
+              <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
             </div>
-          </>
+          </div>
         )}
       </main>
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-[#070707] border-t border-[#1e1e1e] flex justify-around items-center p-1.5 pb-5 md:pb-3 shadow-[0_-8px_30px_rgba(0,0,0,0.7)] z-30 backdrop-blur-md">
+      {/* Bottom Floating Glass Dock */}
+      <nav className="fixed bottom-4 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[500px] bg-neutral-950/90 backdrop-blur-md border border-neutral-800 flex justify-around items-center p-1.5 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] z-35">
+        
         <button 
           onClick={() => setActiveTab('album')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'album' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'album' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Álbum</span>
+          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={16} className="mb-0.5" />
+          <span className="text-[8px] tracking-tight uppercase font-medium">Álbum</span>
         </button>
+
         <button 
-          onClick={() => setActiveTab('repeated')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'repeated' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+          onClick={() => setActiveTab('missing')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'missing' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Repetidas</span>
+          <FileQuestion strokeWidth={activeTab === 'missing' ? 2.5 : 2} size={16} className="mb-0.5" />
+          <span className="text-[8px] tracking-tight uppercase font-medium">Faltan</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('exchange')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'exchange' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Cambiar</span>
-        </button>
+
         <button 
           onClick={() => setActiveTab('scanner')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'scanner' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'scanner' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Escáner</span>
+          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={16} className="mb-0.5" />
+          <span className="text-[8px] tracking-tight uppercase font-medium">Escáner</span>
         </button>
+
         <button 
           onClick={() => setActiveTab('sorter')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'sorter' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'sorter' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <ListOrdered strokeWidth={activeTab === 'sorter' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Organizar</span>
+          <ListOrdered strokeWidth={activeTab === 'sorter' ? 2.5 : 2} size={16} className="mb-0.5" />
+          <span className="text-[8px] tracking-tight uppercase font-medium font-sans">Organizar</span>
         </button>
+
         <button 
           onClick={() => setActiveTab('activities')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'activities' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'activities' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Actividad</span>
+          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={16} className="mb-0.5" />
+          <span className="text-[8px] tracking-tight uppercase font-medium">Historial</span>
         </button>
-        <button 
-          onClick={() => setActiveTab('settings')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 transition-all duration-300 ${activeTab === 'settings' ? 'text-[#00FF00] scale-102' : 'text-gray-500 hover:text-gray-300'}`}
-        >
-          <Settings strokeWidth={activeTab === 'settings' ? 2.5 : 2} size={19} className="mb-0.5" />
-          <span className="text-[7.5px] font-bold uppercase tracking-wider">Ajustes</span>
-        </button>
+
       </nav>
     </div>
   );
 }
-

@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Camera, RefreshCw, Type, Trash2, Plus, ListOrdered, CheckCircle, Info, Sparkles } from 'lucide-react';
 import Tesseract from 'tesseract.js';
-import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
 
 interface SorterProps {
   addActivity?: (text: string) => void;
@@ -88,7 +88,7 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
     });
   }, [pileStickers, stickerOrderMap]);
 
-  // Group stickers by Team for a clean "Desk Shelf" bento layout
+  // Group stickers by Team for a clean "Desk Shelf" layout
   const groupedStickers = useMemo(() => {
     const sections: { team: typeof WORLD_CUP_TEAMS[0]; items: typeof pileStickers }[] = [];
     WORLD_CUP_TEAMS.forEach(team => {
@@ -243,6 +243,11 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
       const idx = textAsLetters.indexOf(p);
 
       if (idx !== -1) {
+        const charBefore = idx > 0 ? textAsLetters.charAt(idx - 1) : '';
+        if (/[A-Z]/.test(charBefore)) {
+          continue;
+        }
+
         const after = noSpaces.substring(idx + p.length);
         const numMatch = /^[-_\.]?([A-Z0-9]{1,2})/.exec(after);
 
@@ -416,81 +421,81 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto pb-24">
+    <div className="w-full max-w-5xl mx-auto pb-24 text-neutral-200 font-sans">
       <div className="text-center mb-8 px-4">
-        <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-[#00FF00]/10 border border-[#00FF00]/20 text-[#00FF00] text-[10px] font-bold uppercase tracking-widest mb-3">
-          <Sparkles size={11} />
+        <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-neutral-900 border border-neutral-800 text-neon-cyan text-[10px] font-sans font-bold uppercase tracking-wider mb-2.5 shadow-[0_0_8px_rgba(0,243,255,0.15)] text-neon-cyan-glow">
+          <Sparkles size={11} className="animate-spin" style={{ animationDuration: '4s' }} />
           Mesa de Ordenamiento Inteligente
         </div>
-        <h2 className="text-3xl font-display uppercase tracking-wider text-white">Organizador de Pilas</h2>
-        <p className="text-zinc-400 text-xs font-sans max-w-lg mx-auto mt-2 leading-relaxed">
-          Ordena tus figuritas físicas según la secuencia exacta del álbum para pegarlas en orden óptimo.
-          <span className="block text-zinc-500 font-bold mt-1.5 text-[10px]">⚠️ No afecta tu Álbum digital ni tus Repetidas. ¡Es un banco de pruebas libre!</span>
+        <h2 className="text-2xl font-display font-black text-white uppercase tracking-tight">Organizador de Pilas</h2>
+        <p className="text-neutral-450 text-xs font-sans max-w-lg mx-auto mt-2 leading-relaxed">
+          Ordena tus figuritas físicas según la secuencia exacta del álbum para pegarlas de forma secuencial rápida.
+          <span className="block text-neon-cyan font-bold mt-1 text-[9.5px] uppercase font-mono text-neon-cyan-glow">⚠️ Banco libre: No afecta tu colección real</span>
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 px-4">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 px-4 select-none">
         
-        {/* LEFT COLUMN: SOURCE ENTER (CAMERA OR MANUAL INPUT) */}
-        <div className="lg:col-span-5 space-y-6">
-          <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 shadow-[0_24px_64px_rgba(0,0,0,0.65)] rounded-3xl p-6 relative overflow-hidden">
-            <div className="flex items-center justify-between mb-4 pb-3 border-b border-zinc-800/60">
-              <span className="text-xs font-display text-white uppercase tracking-wider flex items-center gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-[#00FF00] animate-pulse"></span>
-                Capturar Figuritas
+        {/* LEFT COLUMN: SOURCE ENTER_KEY (CAMERA OR MANUAL INPUT) */}
+        <div className="lg:col-span-12 xl:col-span-5 lg:col-start-1 space-y-4">
+          <div className="bg-neutral-950/75 border border-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-2xl p-5 relative overflow-hidden">
+            <div className="flex items-center justify-between mb-4 pb-2.5 border-b border-neutral-900">
+              <span className="text-xs font-display font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan animate-pulse"></span>
+                Capturar
               </span>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5 bg-neutral-900/60 p-[3px] rounded-lg border border-neutral-850">
                 <button
                   type="button"
                   onClick={() => setManualMode(false)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider font-bold transition-all cursor-pointer active:scale-95 ${!manualMode ? 'bg-[#00FF00] text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded text-[9px] uppercase tracking-wider font-display font-bold transition-all cursor-pointer ${!manualMode ? 'bg-neutral-800 text-neon-cyan shadow-[0_0_6px_rgba(0,243,255,0.15)] font-extrabold border border-neutral-700 text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >
                   Cámara
                 </button>
                 <button
                   type="button"
                   onClick={() => setManualMode(true)}
-                  className={`px-3 py-1.5 rounded-lg text-[9px] uppercase tracking-wider font-bold transition-all cursor-pointer active:scale-95 ${manualMode ? 'bg-[#00FF00] text-black' : 'bg-zinc-800 text-zinc-400 hover:text-white'}`}
+                  className={`px-3 py-1 rounded text-[9px] uppercase tracking-wider font-display font-bold transition-all cursor-pointer ${manualMode ? 'bg-neutral-800 text-neon-cyan shadow-[0_0_6px_rgba(0,243,255,0.15)] font-extrabold border border-neutral-700 text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
                 >
-                  Manual / Teclado
+                  Manual
                 </button>
               </div>
             </div>
 
             {manualMode ? (
-              <div className="space-y-4 py-3">
-                <form onSubmit={handleManualSubmit} className="space-y-4">
+              <div className="space-y-3 py-1">
+                <form onSubmit={handleManualSubmit} className="space-y-3">
                   <div>
-                    <label className="block text-[10px] font-bold text-zinc-400 uppercase tracking-wider mb-2 font-mono">
-                      Ingreso rápido por texto
+                    <label className="block text-[8px] font-bold text-neutral-500 uppercase tracking-widest mb-1.5 font-mono">
+                      Ingreso rápido por lote
                     </label>
                     <textarea
                       value={manualInput}
                       onChange={(e) => setManualInput(e.target.value)}
                       placeholder="Ej: ARG 10, BRA 4, MEX 12, FWC 15, CC 2..."
                       rows={4}
-                      className="w-full bg-zinc-950/60 border border-zinc-800 rounded-2xl text-zinc-200 text-xs px-4 py-3 focus:border-[#00FF00] focus:outline-none focus:ring-1 focus:ring-[#00FF00]/40 transition-all placeholder:text-zinc-755 font-sans resize-none"
+                      className="w-full bg-neutral-950 border border-neutral-850 rounded-xl text-white text-[16px] md:text-sm px-3.5 py-2.5 focus:border-neon-cyan focus:outline-none focus:ring-1 focus:ring-neon-cyan/50 transition-all placeholder:text-neutral-700 font-sans resize-none"
                     />
                   </div>
                   <button
                     type="submit"
-                    className="w-full bg-[#00FF00] text-black py-4 rounded-xl font-display text-base uppercase tracking-wider hover:bg-white transition-all font-bold cursor-pointer active:scale-95 shadow-[0_4px_15px_rgba(0,255,0,0.15)]"
+                    className="w-full bg-gradient-to-r from-neon-green to-emerald-500 text-black py-3 rounded-lg font-display text-sm font-bold uppercase tracking-wider transition-all cursor-pointer active:scale-95 shadow-[0_0_12px_rgba(57,255,20,0.25)]"
                   >
-                    Agregar a la Mesa de Ordenamiento
+                    Agregar a la Mesa de Orden
                   </button>
                 </form>
 
-                <p className="text-[10px] text-zinc-500 leading-normal font-sans pt-1">
-                  💡 Puedes separar las figuritas por comas, espacios o saltos de línea. Admitimos escrituras libres como <span className="text-[#00FF00]">arg10</span>, <span className="text-[#00FF00]">mex-12</span> o <span className="text-[#00FF00]">cc 4</span>.
+                <p className="text-[10px] text-neutral-450 leading-relaxed font-sans pt-1">
+                  💡 Puedes separar las figuritas por comas, espacios o saltos de línea. Admitimos escrituras libres como <span className="text-neon-cyan font-bold font-mono">arg10</span>, <span className="text-neon-cyan font-bold font-mono">mex-12</span> o <span className="text-neon-cyan font-bold font-mono">cc 4</span>.
                 </p>
 
                 {manualSuccessMsg && (
-                  <div className="bg-[#00FF00]/10 border border-[#00FF00]/20 text-[#00FF00] p-3 rounded-xl text-xs leading-relaxed font-sans mt-2 animate-in fade-in">
+                  <div className="bg-neon-green/5 border border-neon-green/30 text-neon-green p-3 rounded-xl text-xs leading-relaxed font-sans animate-in fade-in font-medium text-neon-green-glow">
                     {manualSuccessMsg}
                   </div>
                 )}
                 {manualErrorMsg && (
-                  <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-xl text-xs leading-relaxed font-sans mt-2 animate-in fade-in">
+                  <div className="bg-neon-pink/5 border border-neon-pink/30 text-neon-pink p-3 rounded-xl text-xs leading-relaxed font-sans animate-in fade-in text-neon-pink-glow">
                     {manualErrorMsg}
                   </div>
                 )}
@@ -498,57 +503,57 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
             ) : (
               <div className="space-y-4">
                 {hasPermission === false ? (
-                  <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
-                    <p className="text-red-400 text-xs font-sans mb-3">{error}</p>
+                  <div className="p-4 bg-neon-pink/5 border border-neon-pink/20 rounded-xl text-center">
+                    <p className="text-neon-pink text-xs font-sans mb-3 text-neon-pink-glow">{error}</p>
                     <button
                       onClick={startCamera}
-                      className="inline-flex items-center gap-2 bg-zinc-800 hover:bg-zinc-750 text-white px-4 py-2 rounded-xl text-xs transition-colors cursor-pointer active:scale-95"
+                      className="inline-flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 text-neutral-300 px-3 py-2 rounded-lg text-xs hover:text-white hover:bg-neutral-850 transition-colors cursor-pointer active:scale-95 font-bold"
                     >
-                      <RefreshCw size={12} /> Reintentar Permiso
+                      <RefreshCw size={11} /> Reintentar Permiso
                     </button>
                   </div>
                 ) : (
-                  <div className="relative aspect-video rounded-2xl overflow-hidden bg-black border border-zinc-800 group">
+                  <div className="relative aspect-video rounded-xl overflow-hidden bg-neutral-950 border border-neutral-900 group">
                     <video
                       ref={videoRef}
                       autoPlay
                       playsInline
                       muted
-                      className="w-full h-full object-cover"
+                      className="w-full h-full object-cover opacity-80"
                     />
                     <canvas ref={canvasRef} className="hidden" />
 
                     {/* Camera Target Box overlay */}
                     <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center">
-                      <div className="w-[60%] h-[35%] border-2 border-[#00FF00]/70 rounded-xl relative flex items-center justify-center shadow-[0_0_15px_rgba(0,255,0,0.1)]">
-                        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-[#00FF00]"></div>
-                        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-[#00FF00]"></div>
-                        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-[#00FF00]"></div>
-                        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-[#00FF00]"></div>
+                      <div className="w-[60%] h-[35%] border-2 border-neutral-800/40 rounded-xl relative flex items-center justify-center bg-black/10">
+                        <div className="absolute top-0 left-0 w-3 h-3 border-t-2 border-l-2 border-neon-cyan shadow-[0_0_6px_rgba(0,243,255,1)]"></div>
+                        <div className="absolute top-0 right-0 w-3 h-3 border-t-2 border-r-2 border-neon-cyan shadow-[0_0_6px_rgba(0,243,255,1)]"></div>
+                        <div className="absolute bottom-0 left-0 w-3 h-3 border-b-2 border-l-2 border-neon-cyan shadow-[0_0_6px_rgba(0,243,255,1)]"></div>
+                        <div className="absolute bottom-0 right-0 w-3 h-3 border-b-2 border-r-2 border-neon-cyan shadow-[0_0_6px_rgba(0,243,255,1)]"></div>
 
                         {isScanning && (
-                          <div className="absolute inset-x-0 h-0.5 bg-[#00FF00] animate-[bounce_2s_infinite] opacity-60"></div>
+                          <div className="absolute inset-x-0 h-0.5 bg-neon-cyan/70 shadow-[0_0_10px_#00f3ff] animate-[bounce_2s_infinite]"></div>
                         )}
-                        <span className="text-[9px] text-[#00FF00]/80 font-bold uppercase tracking-widest font-mono select-none">
-                          Foco de Captura
+                        <span className="text-[9px] text-neon-cyan font-black uppercase tracking-widest font-mono select-none animate-pulse text-neon-cyan-glow">
+                          Foco Sorter
                         </span>
                       </div>
-                      <p className="text-[8px] text-[#00FF00]/80 mt-3 font-mono self-center select-none bg-black/60 px-3 py-1 rounded-full backdrop-blur-sm">
+                      <p className="text-[8px] text-neutral-300 bg-neutral-950/90 border border-neutral-800 mt-2.5 font-mono select-none px-2.5 py-1 rounded-full backdrop-blur-xs tracking-wide">
                         Enfoca el código del álbum (Ej. ARG 10)
                       </p>
                     </div>
 
                     {/* Flash effect */}
                     {flashSuccess && (
-                      <div className="absolute inset-0 bg-white/70 animate-ping pointer-events-none"></div>
+                      <div className="absolute inset-0 bg-emerald-500/15 pointer-events-none transition-opacity duration-150 animate-pulse"></div>
                     )}
                   </div>
                 )}
 
                 {/* Zoom Capabilities */}
                 {zoomCaps && (
-                  <div className="flex items-center gap-3 bg-zinc-950/65 border border-zinc-900 p-2.5 rounded-xl">
-                    <span className="text-[9px] uppercase tracking-widest font-bold text-zinc-500">Zoom</span>
+                  <div className="flex items-center gap-2.5 bg-neutral-900/60 border border-neutral-850 p-2 rounded-xl">
+                    <span className="text-[8.5px] uppercase tracking-widest font-mono font-bold text-neutral-550">Zoom</span>
                     <input
                       type="range"
                       min={zoomCaps.min}
@@ -556,16 +561,16 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
                       step={zoomCaps.step}
                       value={zoom}
                       onChange={handleZoomChange}
-                      className="flex-1 accent-[#00FF00] bg-zinc-800 h-1.5 rounded-lg cursor-pointer"
+                      className="flex-1 accent-neon-cyan bg-neutral-800 h-1 rounded-lg cursor-pointer animate-none"
                     />
-                    <span className="text-[10px] font-mono text-zinc-300 w-8 text-right font-bold">{zoom.toFixed(1)}x</span>
+                    <span className="text-[9.5px] font-mono text-neon-cyan w-8 text-right font-bold text-neon-cyan-glow">{zoom.toFixed(1)}x</span>
                   </div>
                 )}
 
-                <div className="p-3 bg-zinc-950/40 rounded-xl border border-zinc-800 flex items-center gap-2">
-                  <Info size={14} className="text-[#00FF00] shrink-0" />
-                  <p className="text-[10px] text-zinc-500 leading-normal font-sans">
-                    El escáner utiliza visión artificial de alto rendimiento en tiempo real. Al detectar un código se reproducirá un pitido y se ordenará automáticamente abajo.
+                <div className="p-3 bg-neutral-950 border border-neutral-900 rounded-xl flex items-start gap-2">
+                  <Info size={13} className="text-neon-cyan shrink-0 mt-0.5" />
+                  <p className="text-[10px] text-neutral-450 leading-relaxed font-sans">
+                    El escáner de visión por computadora detectará automáticamente los códigos oficiales, pitará, y los agregará al listado de la pila organizada en tiempo real.
                   </p>
                 </div>
               </div>
@@ -573,38 +578,35 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
           </div>
 
           {/* Quick Clear pile button widget */}
-          <div className="bg-[#111] bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 rounded-2xl p-4 flex items-center justify-between mt-4">
+          <div className="bg-neutral-950 border border-neutral-900 rounded-xl p-3 flex items-center justify-between shadow-[0_0_10px_rgba(0,0,0,0.4)]">
             <div className="flex flex-col">
-              <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">En Pila</span>
-              <span className="text-xl font-display text-[#00FF00]">{sortedStickers.reduce((sum, s) => sum + s.count, 0)}</span>
+              <span className="text-[8px] font-bold text-neutral-500 uppercase tracking-widest font-mono">Figuritas en Mesa</span>
+              <span className="text-2xl font-display font-black text-white text-neon-cyan-glow">{sortedStickers.reduce((sum, s) => sum + s.count, 0)}</span>
             </div>
             <button
               onClick={clearPile}
               disabled={pileStickers.length === 0}
-              className="flex items-center gap-1.5 px-4 py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500 hover:text-white transition-all text-red-500 text-xs font-bold uppercase tracking-wider rounded-xl disabled:bg-zinc-900 disabled:text-zinc-600 disabled:border-transparent cursor-pointer disabled:cursor-not-allowed"
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-neutral-900 hover:bg-neutral-850 hover:text-neon-pink hover:border-neutral-700 border border-neutral-800 text-neon-pink-glow text-neon-pink text-xs font-bold uppercase tracking-wider rounded-lg disabled:opacity-30 disabled:hover:bg-neutral-900 disabled:hover:text-neon-pink cursor-pointer disabled:cursor-not-allowed transition-all"
             >
-              <Trash2 size={13} />
+              <Trash2 size={12} />
               Limpiar Mesa
             </button>
           </div>
         </div>
 
         {/* RIGHT COLUMN: RE-SORTED PILE DISPLAY */}
-        <div className="lg:col-span-7">
-          <div className="bg-zinc-900/60 backdrop-blur-xl border border-zinc-800/80 shadow-[0_24px_64px_rgba(0,0,0,0.65)] rounded-3xl p-6 min-h-[500px] flex flex-col justify-between relative overflow-hidden">
+        <div className="lg:col-span-12 xl:col-span-7">
+          <div className="bg-neutral-950/75 border border-neutral-900 shadow-[0_0_15px_rgba(0,0,0,0.5)] rounded-2xl p-5 min-h-[480px] flex flex-col justify-between relative overflow-hidden">
             
-            {/* Ambient Background decoration */}
-            <div className="absolute top-0 right-0 w-32 h-32 bg-[#00FF00]/5 rounded-full blur-[60px] pointer-events-none"></div>
-
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-zinc-800 mb-6">
+              <div className="flex items-center justify-between pb-3.5 border-b border-neutral-900 mb-5">
                 <div>
-                  <h3 className="text-xl font-display text-white uppercase tracking-wider">Pila Ordenada</h3>
-                  <span className="text-[10px] text-zinc-400 font-sans block">Secuencia sugerida según el orden físico del álbum</span>
+                  <h3 className="text-lg font-display font-black text-white uppercase tracking-tight">Mesa de Ordenamiento</h3>
+                  <span className="text-[10px] text-neutral-450 font-sans block mt-0.5 font-medium">Sugerencia secuencial para apilar y pegar sin navegar de hoja</span>
                 </div>
-                <div className="flex items-center gap-2 bg-zinc-950/40 border border-zinc-800/80 px-3 py-1.5 rounded-lg select-none">
-                  <ListOrdered size={14} className="text-[#00FF00]" />
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-300 font-mono">
+                <div className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 px-3 py-1 rounded-lg select-none text-neon-cyan shadow-[0_0_6px_rgba(0,243,255,0.1)] font-mono text-neon-cyan-glow">
+                  <ListOrdered size={12} />
+                  <span className="text-[10px] font-bold uppercase tracking-wider">
                     {groupedStickers.length} Grupos
                   </span>
                 </div>
@@ -612,66 +614,67 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
 
               {/* Status Banner */}
               {lastScannedText && (
-                <div className="mb-4 bg-[#00FF00] text-black text-center font-display uppercase tracking-widest text-xs py-2 px-4 rounded-xl animate-in fade-in slide-in-from-top-2">
+                <div className="mb-4 bg-neon-cyan/5 border border-neon-cyan/25 text-neon-cyan text-center font-display uppercase tracking-wider text-[10px] py-1.5 px-3 rounded-lg animate-in font-bold text-neon-cyan-glow shadow-[0_0_8px_rgba(0,243,255,0.15)]">
                   {lastScannedText}
                 </div>
               )}
 
               {sortedStickers.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-                  <div className="w-16 h-16 rounded-full bg-zinc-950/40 flex items-center justify-center border border-zinc-800 mb-4 shadow-inner text-zinc-650">
-                    <ListOrdered size={24} />
+                  <div className="w-12 h-12 rounded-full bg-neutral-900 flex items-center justify-center border border-neutral-800 mb-3 text-neutral-500 shadow-[0_0_8px_rgba(0,0,0,0.4)]">
+                    <ListOrdered size={18} />
                   </div>
-                  <h4 className="text-white text-base font-display uppercase tracking-wide">La mesa está vacía</h4>
-                  <p className="text-zinc-500 text-xs font-sans max-w-xs mt-1 leading-normal">
-                    Ingresa códigos de figuritas arriba o enciende la cámara para construir la pila.
+                  <h4 className="text-neutral-300 text-sm font-display font-bold uppercase tracking-wide">La mesa está libre</h4>
+                  <p className="text-neutral-500 text-xs font-sans max-w-xs mt-1.5 leading-normal">
+                    Ingresa códigos de figuritas arriba o enciende la cámara para agruparlas por equipo.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-6 max-h-[500px] overflow-y-auto pr-1">
+                <div className="space-y-4 max-h-[440px] overflow-y-auto pr-1">
                   {groupedStickers.map(({ team, items }) => {
                     const isCC = team.prefix === 'CC';
-                    const groupColor = isCC ? 'text-red-500 border-red-500/20 bg-red-500/5' : 'text-[#00FF00] border-[#00FF00]/20 bg-[#00FF00]/5';
+                    const groupColor = isCC 
+                      ? 'text-neon-pink border-neon-pink/20 bg-neon-pink/5 shadow-[0_0_6px_rgba(255,0,127,0.1)]' 
+                      : 'text-neon-cyan border-neon-cyan/20 bg-neon-cyan/5 shadow-[0_0_6px_rgba(0,243,255,0.1)]';
                     
                     return (
-                      <div key={team.id} className="bg-zinc-950/40 border border-zinc-850 p-4 rounded-2xl animate-in fade-in duration-300">
+                      <div key={team.id} className="bg-neutral-900/10 border border-neutral-900 p-3.5 rounded-xl animate-in fade-in duration-200">
                         {/* Team Category Board */}
-                        <div className="flex justify-between items-center mb-3 pb-2 border-b border-zinc-855">
-                          <span className="text-xs font-display uppercase text-white tracking-wider block">
-                            ⚽ {team.name} <span className="text-zinc-500 text-[10px] ml-1 font-mono">({team.prefix})</span>
+                        <div className="flex justify-between items-center mb-3 pb-1.5 border-b border-neutral-900 font-sans">
+                          <span className="text-[11.5px] font-display font-bold uppercase text-white tracking-wider block">
+                             {team.name} <span className="text-neutral-500 text-[9px] ml-1 font-mono">({team.prefix})</span>
                           </span>
-                          <span className={`text-[9px] uppercase font-bold tracking-widest border px-2.5 py-0.5 rounded-full ${groupColor}`}>
+                          <span className={`text-[8px] uppercase font-mono font-bold tracking-wider border px-2 py-0.5 rounded-md ${groupColor}`}>
                             {items.reduce((acc, i) => acc + i.count, 0)} cromos
                           </span>
                         </div>
 
                         {/* Strikers sequence items inside this Team */}
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 font-sans">
                           {items.map((item) => {
-                            // Find sequential absolute index inside sorted pile to guide physical ordering
                             const absoluteIndex = sortedStickers.findIndex(x => x.id === item.id) + 1;
 
                             return (
                               <div
                                 key={item.id}
-                                className="flex items-center justify-between p-2 bg-zinc-900/40 rounded-xl border border-zinc-805 hover:border-zinc-700 transition-colors"
+                                className="flex items-center justify-between p-2 bg-neutral-950 rounded-lg border border-neutral-900 hover:border-neutral-800 hover:shadow-[0_0_8px_rgba(0,243,255,0.05)] transition-all"
                               >
                                 <div className="flex items-center gap-2">
                                   {/* Physical order number label */}
-                                  <div className="w-5 h-5 rounded-full bg-zinc-950 border border-zinc-800 text-[10px] font-mono text-zinc-400 font-bold flex items-center justify-center shrink-0 shadow">
+                                  <div className="w-5 h-5 rounded bg-neutral-900 border border-neutral-800 text-[8.5px] font-mono text-neon-cyan font-extrabold flex items-center justify-center shrink-0 shadow-[0_0_4px_rgba(0,243,255,0.15)] text-neon-cyan-glow">
                                     {absoluteIndex}º
                                   </div>
-                                  <span className="font-display text-white text-base font-bold tracking-wide">
+                                  <span className="font-display text-white text-sm font-bold tracking-wide">
                                     {item.display}
                                   </span>
                                   {item.count > 1 && (
-                                    <span className="bg-[#00FF00]/10 text-[#00FF00] border border-[#00FF00]/20 text-[10px] font-mono px-1.5 py-0.2 rounded font-bold">
+                                    <span className="bg-neutral-900 border border-neutral-850 text-neutral-400 text-[10px] font-mono px-1.5 py-0.2 rounded font-bold">
                                       x{item.count}
                                     </span>
                                   )}
                                 </div>
 
-                                <div className="flex gap-1.5 shrink-0">
+                                <div className="flex gap-1 shrink-0">
                                   {/* Plus count adjuster */}
                                   <button
                                     type="button"
@@ -680,9 +683,9 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
                                         return prev.map(s => s.id === item.id ? { ...s, count: s.count + 1 } : s);
                                       });
                                     }}
-                                    className="p-1.5 bg-zinc-850 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white transition-colors cursor-pointer"
+                                    className="p-1.5 bg-neutral-900 border border-neutral-800 hover:bg-neutral-800 rounded text-neutral-400 hover:text-white transition-colors cursor-pointer"
                                   >
-                                    <Plus size={10} />
+                                    <Plus size={8} />
                                   </button>
                                   {/* Minus / Delete button */}
                                   <button
@@ -697,9 +700,9 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
                                         }
                                       });
                                     }}
-                                    className="p-1.5 bg-zinc-850 hover:bg-red-500/20 rounded text-zinc-400 hover:text-red-400 transition-colors cursor-pointer"
+                                    className="p-1.5 bg-neutral-900 border border-neutral-800 hover:bg-neon-pink/15 hover:text-neon-pink hover:border-neon-pink/30 rounded text-neutral-400 transition-all cursor-pointer text-neon-pink-glow"
                                   >
-                                    <Trash2 size={10} />
+                                    <Trash2 size={8} />
                                   </button>
                                 </div>
                               </div>
@@ -715,13 +718,13 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
 
             {/* Explanatory footer guide */}
             {sortedStickers.length > 0 && (
-              <div className="mt-6 pt-4 bg-[#1a1a1a]/40 p-4 rounded-2xl border border-zinc-850">
-                <h4 className="text-[10px] font-bold text-white uppercase tracking-wider mb-1 flex items-center gap-1.5">
-                  <CheckCircle size={12} className="text-[#00FF00]" />
+              <div className="mt-5 pt-3.5 bg-neutral-950 p-3 rounded-xl border border-neutral-900">
+                <h4 className="text-[10px] font-display font-medium text-white uppercase tracking-wider mb-1.5 flex items-center gap-1.5 font-bold">
+                  <CheckCircle size={11} className="text-neon-cyan" />
                   ¿Cómo seguir esta guía física?
                 </h4>
-                <p className="text-[10px] text-zinc-500 leading-normal font-sans">
-                  Suma tus cromos. Ordénalas físicamente imitando el listado de arriba de primero a último. La número <span className="text-[#00FF00] font-bold">1º</span> debe quedar arriba de tu pila, y la última al fondo de tu mano. ¡Así pegarás todo del tirón sin retroceder de hoja!
+                <p className="text-[9.5px] text-neutral-400 leading-relaxed font-sans">
+                  Suma tus cromos. Ordénalos físicamente imitando el listado de arriba de primero a último. La número <span className="text-neon-cyan font-extrabold font-mono text-neon-cyan-glow">1º</span> debe quedar arriba de tu pila, y la última al fondo de tu mano. ¡Así pegarás todo del tirón sin retroceder de hoja!
                 </p>
               </div>
             )}

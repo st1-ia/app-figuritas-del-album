@@ -76,33 +76,34 @@ export default function Repeated({ ownedStickers, repeatedStickers, updateRepeat
   }, [searchQuery]);
 
   return (
-    <div className="w-full max-w-4xl mx-auto pb-24">
-      {/* Premium Dashboard Banner */}
-      <div className="px-6 py-6 bg-zinc-900/60 backdrop-blur-xl shadow-2xl rounded-2xl border border-zinc-800/80 mb-8 sticky top-[72px] z-10">
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
+    <div className="w-full max-w-4xl mx-auto pb-24 text-slate-800 font-sans">
+      {/* Banner Card - NOT STICKY AS PER USER REQUEST */}
+      <div className="px-6 py-6 bg-white border border-slate-200 rounded-2xl shadow-sm mb-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-4">
           <div className="flex flex-col">
-            <h2 className="text-3xl font-display uppercase tracking-wider text-white mb-2">Repetidas</h2>
+            <span className="text-[9.5px] font-bold text-slate-400 uppercase tracking-widest mb-1 font-mono">Inventario Duplicado</span>
+            <h2 className="text-2xl font-display font-black uppercase tracking-tight text-slate-900 mb-2">Repeated</h2>
             <button 
               onClick={copyRepeatedStickers}
-              className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-[#00FF00] hover:text-white transition-all bg-[#00FF00]/10 hover:bg-[#00FF00]/20 py-2.5 px-4 rounded-xl border border-[#00FF00]/20 w-fit cursor-pointer active:scale-95"
+              className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-705 bg-white border border-slate-205 rounded-lg py-2 px-3.5 hover:text-slate-950 hover:bg-slate-50 transition-all duration-250 cursor-pointer active:scale-95 shadow-2xs"
             >
-              {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-              {copied ? 'Copiado al portapapeles' : 'Compartir Repetidas'}
+              {copied ? <CheckCircle2 size={13} className="text-[#10b981]" /> : <Copy size={13} />}
+              {copied ? 'Copiado' : 'Compartir Repetidas'}
             </button>
           </div>
-          <div className="text-left sm:text-right">
-            <span className="text-4xl font-display text-[#00FF00] block leading-none drop-shadow-[0_0_12px_rgba(0,255,0,0.4)]">{totalRepeated}</span>
-            <span className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mt-1">Cromos repetidos listos para cambiar</span>
+          <div className="text-left sm:text-right flex flex-col">
+            <span className="text-4xl font-display font-black text-slate-900 block leading-none">{totalRepeated}</span>
+            <span className="text-[10px] font-medium text-slate-500 uppercase tracking-wider block mt-1">Cromos listos por cambiar</span>
           </div>
         </div>
         
-        <div className="relative mt-4">
-          <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none">
-            <Search size={18} className="text-zinc-500" />
+        <div className="relative">
+          <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+            <Search size={14} className="text-slate-405" />
           </div>
           <input
             type="text"
-            className="block w-full pl-11 pr-10 py-3.5 border border-zinc-800 rounded-xl bg-zinc-950/70 text-zinc-200 placeholder-zinc-500 focus:outline-none focus:border-[#00FF00] focus:ring-1 focus:ring-[#00FF00] text-sm transition-all font-sans"
+            className="block w-full pl-9 pr-9 py-2.5 border border-slate-200 rounded-xl bg-slate-50 text-slate-800 placeholder-slate-405 focus:outline-none focus:border-slate-800 focus:bg-white text-[16px] md:text-sm transition-all font-sans"
             placeholder="Buscar por equipo o prefijo (ej. ARG)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
@@ -110,17 +111,17 @@ export default function Repeated({ ownedStickers, repeatedStickers, updateRepeat
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute inset-y-0 right-0 pr-3.5 flex items-center"
+              className="absolute inset-y-0 right-0 pr-3 flex items-center"
             >
-              <X size={18} className="text-zinc-500 hover:text-white transition-colors" />
+              <X size={14} className="text-slate-400 hover:text-slate-650 transition-colors" />
             </button>
           )}
         </div>
       </div>
 
-      <div className="px-2 space-y-4">
+      <div className="space-y-3">
         {filteredTeams.length === 0 && (
-          <div className="text-center py-10 text-zinc-500 font-sans">
+          <div className="text-center py-10 text-slate-400 font-sans border border-slate-200 border-dashed rounded-xl bg-white p-6">
             No se encontraron equipos para "{searchQuery}"
           </div>
         )}
@@ -130,37 +131,40 @@ export default function Repeated({ ownedStickers, repeatedStickers, updateRepeat
           const repeatedInTeam = getTeamRepeatedCount(team.id);
           const hasRepeated = repeatedInTeam > 0;
           const isCC = team.prefix === 'CC'; // Coca cola uses red
-          const accentColor = isCC ? 'text-[#F40009]' : 'text-[#00FF00]';
-          const bgAccentLight = isCC ? 'bg-[#F40009]/15' : 'bg-[#00FF00]/12';
-          const bgAccentHover = isCC ? 'hover:bg-zinc-800/40' : 'hover:bg-zinc-800/40';
+          const accentColor = hasRepeated ? 'text-slate-800' : 'text-slate-500';
+          const bgAccentLight = hasRepeated ? 'bg-amber-100/30 hover:bg-amber-100/40' : 'bg-transparent hover:bg-slate-50';
+          const hasRepeatedBg = hasRepeated ? bgAccentLight : '';
           const teamStickers = stickersByTeam.get(team.id) || [];
 
           return (
-            <div key={team.id} className="bg-zinc-900/40 rounded-2xl overflow-hidden border border-zinc-800/80 transition-all duration-300 hover:border-zinc-700/80 hover:shadow-lg">
+            <div key={team.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden transition-all duration-200">
               <button
-                className={`w-full px-5 py-5 flex items-center justify-between transition-all duration-200 cursor-pointer ${bgAccentHover} ${hasRepeated ? bgAccentLight : ''}`}
+                className={`w-full px-5 py-4 flex items-center justify-between transition-all duration-155 cursor-pointer hover:bg-slate-50 ${hasRepeatedBg}`}
                 onClick={() => setExpandedTeam(isExpanded ? null : team.id)}
               >
-                <div className="flex items-center gap-4">
-                  <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${hasRepeated ? `border-transparent ${bgAccentLight} ${accentColor}` : 'border-zinc-800 text-zinc-500'}`}>
-                    <span className="text-xs font-display tracking-wider uppercase">{team.prefix}</span>
+                <div className="flex items-center gap-3.5">
+                  <div className={`flex items-center justify-center w-8 h-8 rounded-lg border text-xs font-mono font-bold transition-all duration-200 ${hasRepeated ? `bg-amber-50 border-amber-200 text-amber-700` : 'border-slate-200 text-slate-400 bg-slate-50'}`}>
+                    <span className="text-[10px] tracking-widest uppercase font-black">{team.prefix}</span>
                   </div>
-                  <span className={`font-semibold text-base sm:text-lg transition-colors ${hasRepeated ? 'text-white' : 'text-zinc-300'}`}>{team.name}</span>
+                  <div className="flex flex-col items-start leading-tight">
+                    <span className={`font-display font-semibold text-sm sm:text-base transition-colors ${hasRepeated ? 'text-slate-900 font-extrabold' : 'text-slate-700'}`}>{team.name}</span>
+                    <span className="text-[7.5px] uppercase tracking-wider text-slate-400 font-bold font-mono mt-0.5">Grupo {team.id === 'fwc' || team.id === 'coc' ? 'Especial' : team.id.toUpperCase()}</span>
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-4">
-                  <div className="flex flex-col items-end">
-                     <span className={`text-xl font-display leading-none transition-colors ${hasRepeated ? accentColor : 'text-white'}`}>
+                <div className="flex items-center gap-3">
+                  <div className="flex flex-col items-end leading-none">
+                     <span className={`text-xl font-display font-black transition-colors ${hasRepeated ? 'text-slate-900' : 'text-slate-400'}`}>
                        {repeatedInTeam}
                      </span>
-                     <span className="text-[9px] uppercase tracking-wider text-zinc-500 font-bold">repetidas</span>
+                     <span className="text-[7.5px] uppercase tracking-wider text-slate-400 font-bold mt-1">repetidas</span>
                   </div>
-                  {isExpanded ? <ChevronDown size={22} className="text-zinc-500" /> : <ChevronRight size={22} className="text-zinc-500" />}
+                  {isExpanded ? <ChevronDown size={14} className="text-slate-450" /> : <ChevronRight size={14} className="text-slate-455" />}
                 </div>
               </button>
 
               {isExpanded && (
-                <div className="p-5 bg-zinc-950/60 border-t border-zinc-800 grid grid-cols-5 sm:grid-cols-8 md:grid-cols-10 gap-3">
+                <div className="p-4 bg-slate-50/80 border-t border-slate-150 grid grid-cols-4 sm:grid-cols-6 md:grid-cols-10 gap-2 animate-in slide-in-from-top-1 duration-200">
                   {teamStickers.map((sticker) => {
                     const number = sticker.number === 0 ? '00' : sticker.number;
                     const stickerId = sticker.id;
@@ -168,42 +172,45 @@ export default function Repeated({ ownedStickers, repeatedStickers, updateRepeat
                     const isRepeated = count > 0;
                     const isOwned = ownedStickers.has(stickerId);
                     
-                    const stickerColorClass = isCC 
-                      ? 'from-[#F40009]/15 to-transparent border-[#F40009]/60 hover:from-[#F40009]/20 shadow-[0_0_15px_rgba(244,0,9,0.15)]' 
-                      : 'from-[#00FF00]/15 to-transparent border-[#00FF00]/60 hover:from-[#00FF00]/20 shadow-[0_0_15px_rgba(0,255,0,0.15)]';
-                    const checkColorClass = isCC ? 'bg-[#F40009] text-white' : 'bg-[#00FF00] text-black';
+                    const stickerStyle = isRepeated
+                      ? isCC
+                        ? 'bg-red-55 border-red-200 text-red-700 font-bold'
+                        : 'bg-emerald-50 border-emerald-200 text-emerald-700 font-semibold shadow-inner'
+                      : isOwned
+                        ? 'bg-white border-slate-200 text-slate-400 hover:border-slate-350 hover:text-slate-800 cursor-pointer'
+                        : 'opacity-20 cursor-not-allowed bg-slate-100/50 border-slate-100 text-slate-300';
+
+                    const countColorBadge = isCC ? 'bg-red-550 text-white' : 'bg-emerald-500 text-white';
 
                     return (
                       <div
                         key={stickerId}
                         className={`
-                          relative flex flex-col items-center justify-center p-2 rounded-xl py-4 border-2 transition-all duration-200 uppercase tracking-wider overflow-hidden
-                          ${isRepeated 
-                            ? `bg-gradient-to-b ${stickerColorClass} scale-102 font-bold` 
-                            : `bg-zinc-950/30 border-zinc-850 text-zinc-600 ${isOwned ? 'hover:border-zinc-700/80 hover:text-zinc-300 cursor-pointer' : 'opacity-40 cursor-not-allowed'}`}
+                          relative flex flex-col items-center justify-center p-2 rounded-lg py-3.5 border transition-all duration-150 uppercase tracking-widest overflow-hidden select-none text-xs
+                          ${stickerStyle}
                         `}
                         onClick={!isRepeated && isOwned ? () => updateRepeated(stickerId, 1) : undefined}
                       >
-                        <span className={`text-[8px] font-bold ${isRepeated ? (isCC ? 'text-[#F40009]' : 'text-[#00FF00]') : 'text-zinc-600'}`}>{sticker.prefix}</span>
-                        <span className={`text-xl font-display mt-0.5 ${isRepeated ? 'text-white' : 'text-zinc-500'}`}>{number}</span>
+                        <span className={`text-[7px] font-mono font-bold ${isRepeated ? (isCC ? 'text-red-500' : 'text-emerald-700') : 'text-slate-400'} mb-0.5`}>{sticker.prefix}</span>
+                        <span className={`text-base font-display font-black leading-none ${isRepeated ? 'text-slate-900 font-extrabold' : 'text-slate-505'}`}>{number}</span>
                         
                         {isRepeated && (
                           <>
-                            <div className={`absolute top-0 right-0 px-2 py-0.5 flex items-center justify-center rounded-bl-lg ${checkColorClass}`}>
-                              <span className="font-display font-bold text-xs">x{count}</span>
+                            <div className="absolute top-0 right-0 px-2 py-0.5 bg-slate-900 rounded-bl-sm text-white">
+                              <span className="font-display font-black text-[9px]">x{count}</span>
                             </div>
-                            <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-2 mt-2">
+                            <div className="absolute bottom-1 left-0 right-0 flex justify-center gap-1 mt-1.5">
                               <button 
                                 onClick={(e) => { e.stopPropagation(); updateRepeated(stickerId, -1); }}
-                                className="w-5.5 h-5.5 rounded-full bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all cursor-pointer"
+                                className="w-5 h-5 rounded bg-white border border-slate-200 text-slate-600 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-xs active:scale-90"
                               >
-                                <Minus size={10} strokeWidth={3} />
+                                <Minus size={8} strokeWidth={3} />
                               </button>
                               <button 
                                 onClick={(e) => { e.stopPropagation(); updateRepeated(stickerId, 1); }}
-                                className="w-5.5 h-5.5 rounded-full bg-zinc-900/90 border border-zinc-800 flex items-center justify-center text-zinc-300 hover:bg-zinc-800 hover:text-white transition-all cursor-pointer"
+                                className="w-5 h-5 rounded bg-white border border-slate-205 text-slate-600 flex items-center justify-center hover:bg-slate-100 hover:text-slate-900 transition-all cursor-pointer shadow-xs active:scale-90"
                               >
-                                <Plus size={10} strokeWidth={3} />
+                                <Plus size={8} strokeWidth={3} />
                               </button>
                             </div>
                           </>
