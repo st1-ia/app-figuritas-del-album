@@ -97,3 +97,66 @@ export const getAllStickers = (): StickerDef[] => {
   });
   return stickers;
 };
+
+export function parseCodesFromString(rawInput: string): { foundPrefix: string; num: number }[] {
+  const results: { foundPrefix: string; num: number }[] = [];
+  const upperInput = rawInput.toUpperCase();
+
+  const prefixes = [
+    'FWC', 'MEX', 'RSA', 'KOR', 'CZE', 'CAN', 'BIH', 'QAT', 'SUI', 'BRA',
+    'MAR', 'HAI', 'SCO', 'USA', 'PAR', 'AUS', 'TUR', 'GER', 'CUW', 'CIV',
+    'ECU', 'NED', 'JPN', 'SWE', 'TUN', 'BEL', 'EGY', 'IRN', 'NZL', 'ESP',
+    'CPV', 'KSA', 'URU', 'FRA', 'SEN', 'IRQ', 'NOR', 'ARG', 'ALG', 'AUT',
+    'JOR', 'POR', 'COD', 'UZB', 'COL', 'ENG', 'CRO', 'GHA', 'PAN', 'CC'
+  ];
+  
+  const prefixStr = prefixes.join('|');
+  const regex = new RegExp(`(${prefixStr})\\s*[-_\\.]?\\s*([0-9OISBLZ]{1,2})`, 'gi');
+  
+  let match;
+  while ((match = regex.exec(upperInput)) !== null) {
+    const rawPrefix = match[1];
+    const rawNumStr = match[2];
+    
+    const cleanNumStr = rawNumStr
+      .replace(/O/g, '0')
+      .replace(/Q/g, '0')
+      .replace(/I/g, '1')
+      .replace(/L/g, '1')
+      .replace(/S/g, '5')
+      .replace(/B/g, '8')
+      .replace(/Z/g, '2')
+      .replace(/[^0-9]/g, '');
+      
+    if (cleanNumStr.length > 0) {
+      const num = parseInt(cleanNumStr, 10);
+      const team = WORLD_CUP_TEAMS.find(t => t.prefix === rawPrefix);
+      if (team) {
+        const start = team.startNumber ?? 1;
+        if (num >= start && num <= team.count) {
+          results.push({ foundPrefix: team.prefix, num });
+        }
+      }
+    }
+  }
+
+  // Capture standalone "00" or equivalent
+  const doubleZeroRegex = /(?:\b|[^A-Z0-9])(00|OO|0O|O0)(?:\b|[^A-Z0-9])/g;
+  let dzMatch;
+  while ((dzMatch = doubleZeroRegex.exec(upperInput)) !== null) {
+    results.push({ foundPrefix: 'FWC', num: 0 });
+  }
+
+  // Unique results to stay accurate
+  const seen = new Set<string>();
+  const uniqueResults: { foundPrefix: string; num: number }[] = [];
+  for (const item of results) {
+    const key = `${item.foundPrefix}-${item.num}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      uniqueResults.push(item);
+    }
+  }
+
+  return uniqueResults;
+}

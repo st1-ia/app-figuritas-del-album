@@ -10,6 +10,8 @@ import Sorter from './components/Sorter';
 import { getAllStickers } from './data/stickers';
 import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, History, ListOrdered, Settings, Trophy } from 'lucide-react';
 import Missing from './components/Missing';
+import Repeated from './components/Repeated';
+import Exchange from './components/Exchange';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
@@ -38,7 +40,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'scanner' | 'sorter' | 'activities'>('album');
+  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
   const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
@@ -282,6 +284,15 @@ export default function App() {
             <div className={activeTab === 'album' ? 'block' : 'hidden'}>
               <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} />
             </div>
+            <div className={activeTab === 'missing' ? 'block' : 'hidden'}>
+              <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
+            </div>
+            <div className={activeTab === 'repeated' ? 'block' : 'hidden'}>
+              <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />
+            </div>
+            <div className={activeTab === 'exchange' ? 'block' : 'hidden'}>
+              <Exchange executeExchange={executeExchange} ownedStickers={ownedStickers} />
+            </div>
             <div className={activeTab === 'scanner' ? 'block' : 'hidden'}>
               <Scanner 
                 ownedStickers={ownedStickers} 
@@ -302,54 +313,67 @@ export default function App() {
                 isActive={activeTab === 'sorter'}
               />
             </div>
-            <div className={activeTab === 'missing' ? 'block' : 'hidden'}>
-              <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
-            </div>
           </div>
         )}
       </main>
 
       {/* Bottom Floating Glass Dock */}
-      <nav className="fixed bottom-4 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[500px] bg-neutral-950/90 backdrop-blur-md border border-neutral-800 flex justify-around items-center p-1.5 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] z-35">
+      <nav className="fixed bottom-4 left-4 right-4 md:left-1/2 md:right-auto md:-translate-x-1/2 md:w-[600px] bg-neutral-950/90 backdrop-blur-md border border-neutral-800 flex justify-around items-center p-1.5 rounded-2xl shadow-[0_0_20px_rgba(0,0,0,0.8)] z-35">
         
         <button 
           onClick={() => setActiveTab('album')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'album' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={16} className="mb-0.5" />
-          <span className="text-[8px] tracking-tight uppercase font-medium">Álbum</span>
+          <BookOpen strokeWidth={activeTab === 'album' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Álbum</span>
         </button>
 
         <button 
           onClick={() => setActiveTab('missing')}
           className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'missing' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <FileQuestion strokeWidth={activeTab === 'missing' ? 2.5 : 2} size={16} className="mb-0.5" />
-          <span className="text-[8px] tracking-tight uppercase font-medium">Faltan</span>
+          <FileQuestion strokeWidth={activeTab === 'missing' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Faltan</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('repeated')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'repeated' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+        >
+          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Repetidas</span>
+        </button>
+
+        <button 
+          onClick={() => setActiveTab('exchange')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'exchange' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+        >
+          <ArrowRightLeft strokeWidth={activeTab === 'exchange' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Canjes</span>
         </button>
 
         <button 
           onClick={() => setActiveTab('scanner')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'scanner' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-150 cursor-pointer ${activeTab === 'scanner' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)]' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={16} className="mb-0.5" />
-          <span className="text-[8px] tracking-tight uppercase font-medium">Escáner</span>
+          <ScanLine strokeWidth={activeTab === 'scanner' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Escáner</span>
         </button>
 
         <button 
           onClick={() => setActiveTab('sorter')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'sorter' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-150 cursor-pointer ${activeTab === 'sorter' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)]' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <ListOrdered strokeWidth={activeTab === 'sorter' ? 2.5 : 2} size={16} className="mb-0.5" />
-          <span className="text-[8px] tracking-tight uppercase font-medium font-sans">Organizar</span>
+          <ListOrdered strokeWidth={activeTab === 'sorter' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium font-sans">Organizar</span>
         </button>
 
         <button 
           onClick={() => setActiveTab('activities')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'activities' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-150 cursor-pointer ${activeTab === 'activities' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)]' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={16} className="mb-0.5" />
-          <span className="text-[8px] tracking-tight uppercase font-medium">Historial</span>
+          <History strokeWidth={activeTab === 'activities' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium font-sans">Historial</span>
         </button>
 
       </nav>

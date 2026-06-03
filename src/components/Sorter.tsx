@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useMemo, useCallback } from 'react';
 import { Camera, RefreshCw, Type, Trash2, Plus, ListOrdered, CheckCircle, Info, Sparkles } from 'lucide-react';
 import Tesseract from 'tesseract.js';
-import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers, parseCodesFromString } from '../data/stickers';
 
 interface SorterProps {
   addActivity?: (text: string) => void;
@@ -375,28 +375,15 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
     e.preventDefault();
     if (!manualInput.trim()) return;
 
-    // Support commas, spaces, or newlines as delimiters to batch-enter cards easily
-    const parts = manualInput.split(/[,\n;]+/).map(p => p.trim()).filter(Boolean);
     const addedList: string[] = [];
-    let invalidCount = 0;
+    const extracted = parseCodesFromString(manualInput);
 
-    for (const part of parts) {
-      const { foundPrefix, num } = parseCodeString(part, false);
-      if (foundPrefix) {
-        const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
-        const start = validTeam?.startNumber ?? 1;
-        if (validTeam && num >= start && num <= validTeam.count) {
-          const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`;
-          const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`;
+    for (const item of extracted) {
+      const resultId = item.num === 0 && item.foundPrefix === 'FWC' ? '00' : `${item.foundPrefix}-${item.num}`;
+      const display = item.num === 0 && item.foundPrefix === 'FWC' ? '00' : `${item.foundPrefix} ${item.num}`;
 
-          addStickerToPile(resultId, display);
-          addedList.push(display);
-        } else {
-          invalidCount++;
-        }
-      } else {
-        invalidCount++;
-      }
+      addStickerToPile(resultId, display);
+      addedList.push(display);
     }
 
     if (addedList.length > 0) {
@@ -404,7 +391,7 @@ export default function Sorter({ addActivity, isActive = true }: SorterProps) {
       setManualErrorMsg(null);
       setTimeout(() => setManualSuccessMsg(null), 4000);
     } else {
-      setManualErrorMsg("Ningún código fue reconocido. Ejemplo válido: 'ARG 10, MEX 5, 00'");
+      setManualErrorMsg("Ningún código fue reconocido. Ejemplo válido: 'ARG 10 CC 2 BRA4, 00'");
       setManualSuccessMsg(null);
     }
 

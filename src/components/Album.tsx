@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
-import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, TrendingUp, Trophy, Library, Percent, FileQuestion, Users, Sparkles } from 'lucide-react';
+import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, TrendingUp, Trophy, Library, Percent, FileQuestion, Users, Sparkles, BarChart3 } from 'lucide-react';
 
 interface AlbumProps {
   ownedStickers: Set<string>;
@@ -12,6 +12,7 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned }: 
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [copied, setCopied] = useState(false);
+  const [showCharts, setShowCharts] = useState(true);
   
   const stickers = getAllStickers();
   const stickersByTeam = useMemo(() => {
@@ -22,6 +23,41 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned }: 
     }
     return map;
   }, [stickers]);
+
+  const PROGRESS_GROUPS = useMemo(() => [
+    { name: "Gr. A (MEX, RSA, KOR, CZE)", teamIds: ["mex", "rsa", "kor", "cze"] },
+    { name: "Gr. B (CAN, BIH, QAT, SUI)", teamIds: ["can", "bih", "qat", "sui"] },
+    { name: "Gr. C (BRA, MAR, HAI, SCO)", teamIds: ["bra", "mar", "hai", "sco"] },
+    { name: "Gr. D (USA, PAR, AUS, TUR)", teamIds: ["usa", "par", "aus", "tur"] },
+    { name: "Gr. E (GER, CUW, CIV, ECU)", teamIds: ["ger", "cuw", "civ", "ecu"] },
+    { name: "Gr. F (NED, JPN, SWE, TUN)", teamIds: ["ned", "jpn", "swe", "tun"] },
+    { name: "Gr. G (BEL, EGY, IRN, NZL)", teamIds: ["bel", "egy", "irn", "nzl"] },
+    { name: "Gr. H (ESP, CPV, KSA, URU)", teamIds: ["esp", "cpv", "ksa", "uru"] },
+    { name: "Gr. I (FRA, SEN, IRQ, NOR)", teamIds: ["fra", "sen", "irq", "nor"] },
+    { name: "Gr. J (ARG, ALG, AUT, JOR)", teamIds: ["arg", "alg", "aut", "jor"] },
+    { name: "Gr. K (POR, COD, UZB, COL)", teamIds: ["por", "cod", "uzb", "col"] },
+    { name: "Gr. L (ENG, CRO, GHA, PAN)", teamIds: ["eng", "cro", "gha", "pan"] },
+    { name: "Especiales", teamIds: ["fwc", "coc"] }
+  ], []);
+
+  const progressChartData = useMemo(() => {
+    return PROGRESS_GROUPS.map(group => {
+      let totalInGroup = 0;
+      let ownedInGroup = 0;
+      group.teamIds.forEach(teamId => {
+        const tStickers = stickersByTeam.get(teamId) || [];
+        totalInGroup += tStickers.length;
+        ownedInGroup += tStickers.filter(s => ownedStickers.has(s.id)).length;
+      });
+      const pct = totalInGroup > 0 ? (ownedInGroup / totalInGroup) * 100 : 0;
+      return {
+        name: group.name,
+        owned: ownedInGroup,
+        total: totalInGroup,
+        pct: parseFloat(pct.toFixed(0))
+      };
+    });
+  }, [PROGRESS_GROUPS, stickersByTeam, ownedStickers]);
 
   const getTeamProgress = (teamId: string) => {
     const teamStickers = stickersByTeam.get(teamId) || [];
@@ -163,61 +199,154 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned }: 
         </div>
 
         {/* STATS DECK GRID (DIFFERENT STATISTICS) */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 pt-3 border-t border-neutral-900">
+        <div className="grid grid-cols-3 gap-1.5 sm:gap-4 mb-6 pt-3 border-t border-neutral-900">
           
-          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+          <div className="bg-neutral-950/45 border border-neutral-900 p-2 sm:p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Faltantes</span>
-              <FileQuestion size={13} className="text-neon-pink" />
+              <span className="text-[7.5px] sm:text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Faltantes</span>
+              <FileQuestion size={12} className="text-neon-pink shrink-0" />
             </div>
             <div>
-              <span className="text-xl font-display font-bold text-white block">
-                {stats.missing} <span className="text-xs font-normal text-neutral-500 font-mono">({stats.missingPercent}%)</span>
+              <span className="text-xs sm:text-lg md:text-xl font-display font-black text-white block truncate leading-none">
+                {stats.missing} <span className="text-[8px] sm:text-xs font-normal text-neutral-500 font-mono">({stats.missingPercent}%)</span>
               </span>
-              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Por Conseguir</span>
+              <span className="text-[6.5px] sm:text-[8.5px] uppercase tracking-widest text-neutral-500 block mt-1 font-semibold leading-none">A conseguir</span>
             </div>
           </div>
 
-          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+          <div className="bg-neutral-950/45 border border-neutral-900 p-2 sm:p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Completados</span>
-              <Users size={13} className="text-neon-cyan" />
+              <span className="text-[7.5px] sm:text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Completados</span>
+              <Users size={12} className="text-neon-cyan shrink-0" />
             </div>
             <div>
-              <span className="text-xl font-display font-bold text-white block">
-                {stats.completedGroupsCount} <span className="text-xs font-normal text-neutral-500 font-mono">/ {WORLD_CUP_TEAMS.length}</span>
+              <span className="text-xs sm:text-lg md:text-xl font-display font-black text-white block truncate leading-none">
+                {stats.completedGroupsCount} <span className="text-[8px] sm:text-xs font-normal text-neutral-500 font-mono">/ {WORLD_CUP_TEAMS.length}</span>
               </span>
-              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Grupos al 100%</span>
+              <span className="text-[6.5px] sm:text-[8.5px] uppercase tracking-widest text-neutral-500 block mt-1 font-semibold leading-none">Grupos 100%</span>
             </div>
           </div>
 
-          <div className="bg-neutral-950/40 border border-neutral-900 p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
+          <div className="bg-neutral-950/45 border border-neutral-900 p-2 sm:p-3.5 rounded-xl flex flex-col justify-between hover:border-neutral-850 transition-colors">
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">Especial FIFA</span>
-              <Trophy size={13} className="text-amber-500" />
+              <span className="text-[7.5px] sm:text-[9px] font-bold text-neutral-500 uppercase tracking-wider font-mono">FIFA Especial</span>
+              <Trophy size={11} className="text-amber-500 shrink-0" />
             </div>
             <div>
-              <span className="text-xl font-display font-bold text-white block">
-                {stats.fwcOwned} <span className="text-xs font-normal text-neutral-500 font-mono">/ {stats.fwcTotal} ({stats.fwcPct}%)</span>
+              <span className="text-xs sm:text-lg md:text-xl font-display font-black text-white block truncate leading-none">
+                {stats.fwcOwned} <span className="text-[8px] sm:text-xs font-normal text-neutral-500 font-mono">({stats.fwcPct}%)</span>
               </span>
-              <span className="text-[8.5px] uppercase tracking-wider text-neutral-400 block mt-0.5">Brillantes FWC</span>
+              <span className="text-[6.5px] sm:text-[8.5px] uppercase tracking-widest text-neutral-500 block mt-1 font-semibold leading-none">Brillantes</span>
             </div>
           </div>
 
         </div>
 
         {/* Coca-Cola Specials Sub-Statistic bar */}
-        <div className="mb-5 bg-neutral-950/60 p-3.5 rounded-xl border border-red-950/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-[0_0_12px_rgba(239,68,68,0.05)]">
+        <div className="mb-5 bg-neutral-950/60 p-3 sm:p-3.5 rounded-xl border border-red-950/40 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 shadow-[0_0_12px_rgba(239,68,68,0.05)]">
           <div className="flex items-center gap-2">
-            <div className="w-2.5 h-2.5 rounded-full bg-red-600 animate-pulse shadow-[0_0_6px_rgba(239, 68, 68, 0.8)]"></div>
-            <span className="text-xs font-bold text-red-500 uppercase tracking-wide">Especiales Coca-Cola (CC)</span>
+            <div className="w-2 h-2 rounded-full bg-red-600 animate-pulse shadow-[0_0_6px_rgba(239,68,68,0.8)]"></div>
+            <span className="text-[10px] sm:text-xs font-bold text-red-500 uppercase tracking-wider">Especiales Coca-Cola (CC)</span>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="w-24 bg-neutral-900 rounded-full h-1.5 overflow-hidden p-[1px] border border-red-950/60">
+          <div className="flex items-center gap-3 justify-between sm:justify-end">
+            <div className="w-20 sm:w-24 bg-neutral-900 rounded-full h-1.5 overflow-hidden p-[1px] border border-red-950/60">
               <div className="bg-red-600 h-full rounded-full shadow-[0_0_6px_#dc2626]" style={{ width: `${stats.cocPct}%` }} />
             </div>
-            <span className="text-xs font-mono font-bold text-red-500">{stats.cocOwned} de {stats.cocTotal} pegadas ({stats.cocPct}%)</span>
+            <span className="text-[9px] sm:text-xs font-mono font-bold text-red-500">{stats.cocOwned}/{stats.cocTotal} ({stats.cocPct}%)</span>
           </div>
+        </div>
+
+        {/* PROGRESS CHARTS accordion card */}
+        <div className="mb-6 bg-neutral-950/50 rounded-2xl border border-neutral-900 overflow-hidden shadow-[0_0_15px_rgba(0,243,255,0.02)] transition-all hover:border-neutral-850">
+          <button 
+            type="button"
+            onClick={() => setShowCharts(!showCharts)}
+            className="w-full px-4 py-3.5 sm:px-5 sm:py-4 flex items-center justify-between bg-neutral-950/80 hover:bg-neutral-900/10 cursor-pointer"
+          >
+            <div className="flex items-center gap-2.5">
+              <span className="p-1.5 rounded-lg bg-neon-cyan/5 border border-neon-cyan/20 text-neon-cyan text-neon-cyan-glow">
+                <BarChart3 size={14} />
+              </span>
+              <div className="flex flex-col items-start leading-tight">
+                <span className="font-display font-bold text-xs text-white uppercase tracking-wider">Métrica de Progreso</span>
+                <span className="text-[7.5px] uppercase font-mono font-bold text-neon-cyan mt-0.5 text-neon-cyan-glow">Progreso detallado por grupos clasificatorios</span>
+              </div>
+            </div>
+            <div className="text-neutral-500">
+              {showCharts ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+            </div>
+          </button>
+          
+          {showCharts && (
+            <div className="p-4 bg-neutral-950/95 border-t border-neutral-900 grid grid-cols-1 md:grid-cols-12 gap-4 animate-in slide-in-from-top-1 duration-250">
+               {/* Left: Overall Circular Radial Progress ring */}
+               <div className="md:col-span-4 flex flex-col items-center justify-center bg-neutral-900/10 border border-neutral-900 p-4 rounded-xl text-center">
+                 <span className="text-[7.5px] font-bold text-neutral-500 uppercase tracking-widest font-mono mb-3 block">Total Álbum</span>
+                 
+                 <div className="relative w-28 h-28 flex items-center justify-center">
+                   <svg className="w-full h-full transform -rotate-90">
+                     <circle 
+                       cx="56" cy="56" r="48" 
+                       className="stroke-neutral-900/60" strokeWidth="6" fill="transparent" 
+                     />
+                     <circle 
+                       cx="56" cy="56" r="48" 
+                       className="stroke-neon-cyan transition-all duration-1000 ease-out" strokeWidth="7" fill="transparent" 
+                       strokeDasharray="301.6" 
+                       strokeDashoffset={301.6 - (301.6 * (parseFloat(stats.ownedPercent) / 100))}
+                       strokeLinecap="round"
+                       style={{ filter: 'drop-shadow(0 0 5px rgba(0, 243, 255, 0.45))' }}
+                     />
+                   </svg>
+                   <div className="absolute flex flex-col items-center justify-center">
+                     <span className="text-2xl font-display font-black text-white leading-none">{stats.ownedPercent}%</span>
+                     <span className="text-[7px] text-neutral-500 font-mono font-bold uppercase tracking-widest mt-1">pegados</span>
+                   </div>
+                 </div>
+                 
+                 <div className="mt-4 flex gap-4 text-[10px] font-mono justify-center-center">
+                   <div className="flex flex-col items-center">
+                     <span className="text-neon-cyan font-bold leading-none">{stats.owned}</span>
+                     <span className="text-[6.5px] text-neutral-500 uppercase mt-0.5">Tengo</span>
+                   </div>
+                   <div className="w-[1px] bg-neutral-900" />
+                   <div className="flex flex-col items-center">
+                     <span className="text-neon-pink font-bold leading-none">{stats.missing}</span>
+                     <span className="text-[6.5px] text-neutral-500 uppercase mt-0.5">Faltan</span>
+                   </div>
+                 </div>
+               </div>
+
+               {/* Right: Bar list representing Group stages */}
+               <div className="md:col-span-8 bg-neutral-900/10 border border-neutral-900 p-4 rounded-xl">
+                 <span className="text-[7.5px] font-bold text-neutral-500 uppercase tracking-widest font-mono mb-2.5 block">Naciones por Fase</span>
+                 
+                 <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                   {progressChartData.map((group) => {
+                     const isCCGroup = group.name === 'Especiales';
+                     const progressColor = isCCGroup ? 'bg-gradient-to-r from-red-600 to-amber-500 shadow-[0_0_5px_#dc2626]' : 'bg-gradient-to-r from-neon-cyan to-neon-green shadow-[0_0_5px_#00f3ff]';
+                     
+                     return (
+                       <div key={group.name} className="flex flex-col text-xs leading-none">
+                         <div className="flex justify-between items-baseline mb-1">
+                           <span className="font-display font-semibold text-[8px] sm:text-[9.5px] text-white tracking-wide">{group.name}</span>
+                           <span className="text-[8px] font-mono font-bold text-neutral-450">
+                             {group.owned}/{group.total} <span className="text-neutral-550">({group.pct}%)</span>
+                           </span>
+                         </div>
+                         <div className="w-full bg-neutral-950 rounded-full h-1 p-[0.5px] border border-neutral-900">
+                           <div 
+                             className={`h-full rounded-full transition-all duration-750 ${progressColor}`}
+                             style={{ width: `${Math.max(1.5, group.pct)}%` }}
+                           />
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </div>
+            </div>
+          )}
         </div>
         
         {/* Search - MUST prevent autozoom in mobile with input font size of 16px (text-[16px]) */}

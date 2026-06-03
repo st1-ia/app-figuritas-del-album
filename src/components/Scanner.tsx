@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Camera, RefreshCw, Check, AlertCircle, Loader2, Type as TypeIcon, CopyPlus, Trash2, Plus, Minus, ListOrdered, Trophy } from 'lucide-react';
 import Tesseract from 'tesseract.js';
-import { WORLD_CUP_TEAMS, getAllStickers } from '../data/stickers';
+import { WORLD_CUP_TEAMS, getAllStickers, parseCodesFromString } from '../data/stickers';
 
 interface ScannerProps {
   ownedStickers: Set<string>;
@@ -439,51 +439,38 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     e.preventDefault();
     if (!batchManualInput.trim()) return;
 
-    const parts = batchManualInput.split(/[,\n;]+/).map(p => p.trim()).filter(Boolean);
+    const extracted = parseCodesFromString(batchManualInput);
     const addedList: string[] = [];
     const repeatedList: string[] = [];
-    let invalidCount = 0;
 
-    for (const part of parts) {
-      const { foundPrefix, num } = parseCodeString(part, false);
-      if (foundPrefix) {
-        const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);
-        const start = validTeam?.startNumber ?? 1;
-        if (validTeam && num >= start && num <= validTeam.count) {
-          const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix}-${num}`;
-          const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${foundPrefix} ${num}`;
-          
-          const isOwned = ownedStickers.has(resultId);
-          if (!isOwned) {
-            toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde ingreso manual de lote.`);
-            handleScannedInSession(resultId, display, true);
-            addedList.push(display);
-          } else {
-            if (updateRepeated) {
-              const currentRep = repeatedStickers ? (repeatedStickers[resultId] || 0) : 0;
-              updateRepeated(resultId, 1, `Agregué una repetida de la figurita ${resultId} desde ingreso manual de lote (Total: ${currentRep + 1}).`);
-            }
-            repeatedList.push(display);
-          }
-        } else {
-          invalidCount++;
-        }
+    for (const item of extracted) {
+      const resultId = item.num === 0 && item.foundPrefix === 'FWC' ? '00' : `${item.foundPrefix}-${item.num}`;
+      const display = item.num === 0 && item.foundPrefix === 'FWC' ? '00' : `${item.foundPrefix} ${item.num}`;
+      
+      const isOwned = ownedStickers.has(resultId);
+      if (!isOwned) {
+        toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde ingreso manual de lote.`);
+        handleScannedInSession(resultId, display, true);
+        addedList.push(display);
       } else {
-        invalidCount++;
+        if (updateRepeated) {
+          const currentRep = repeatedStickers ? (repeatedStickers[resultId] || 0) : 0;
+          updateRepeated(resultId, 1, `Agregué una repetida de la figurita ${resultId} desde ingreso manual de lote (Total: ${currentRep + 1}).`);
+        }
+        repeatedList.push(display);
       }
     }
 
-    if (addedList.length > 0 || repeatedList.length > 0 || invalidCount > 0) {
+    if (addedList.length > 0 || repeatedList.length > 0) {
       let msg = '';
       if (addedList.length > 0) msg += `Agregadas al Álbum y Pila: ${addedList.join(', ')}. `;
       if (repeatedList.length > 0) msg += `Agregadas a Repetidas (no van a la pila): ${repeatedList.join(', ')}. `;
-      if (invalidCount > 0) msg += `Ignorados: ${invalidCount} códigos.`;
       
       setBatchManualSuccess(msg);
       setBatchManualError(null);
       setTimeout(() => setBatchManualSuccess(null), 6000);
     } else {
-      setBatchManualError("No se encontraron códigos válidos. Ej: 'ARG 10, CC 2'");
+      setBatchManualError("No se encontraron códigos válidos. Ej: 'ARG 10 CC 2, 00'");
       setBatchManualSuccess(null);
     }
     setBatchManualInput('');
