@@ -7,8 +7,9 @@ import Album from './components/Album';
 import Scanner from './components/Scanner';
 import ActivitiesList from './components/ActivitiesList';
 import Sorter from './components/Sorter';
+import ChartsView from './components/ChartsView';
 import { getAllStickers } from './data/stickers';
-import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, History, ListOrdered, Settings, Trophy } from 'lucide-react';
+import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, History, ListOrdered, Settings, Trophy, BarChart3 } from 'lucide-react';
 import Missing from './components/Missing';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
@@ -40,7 +41,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities'>('album');
+  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts'>('album');
   const [isLoaded, setIsLoaded] = useState(false);
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
   const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
@@ -282,7 +283,10 @@ export default function App() {
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
             <div className={activeTab === 'album' ? 'block' : 'hidden'}>
-              <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} />
+              <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} updateRepeated={updateRepeated} />
+            </div>
+            <div className={activeTab === 'charts' ? 'block' : 'hidden'}>
+              <ChartsView ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} />
             </div>
             <div className={activeTab === 'missing' ? 'block' : 'hidden'}>
               <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
@@ -329,19 +333,11 @@ export default function App() {
         </button>
 
         <button 
-          onClick={() => setActiveTab('missing')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'missing' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
+          onClick={() => setActiveTab('charts')}
+          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'charts' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
         >
-          <FileQuestion strokeWidth={activeTab === 'missing' ? 2.5 : 2} size={15} className="mb-0.5" />
-          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Faltan</span>
-        </button>
-
-        <button 
-          onClick={() => setActiveTab('repeated')}
-          className={`flex flex-col items-center justify-center flex-1 py-1.5 rounded-xl transition-all duration-200 cursor-pointer ${activeTab === 'repeated' ? 'text-black bg-neon-cyan shadow-[0_0_12px_rgba(0,243,255,0.5)] font-bold' : 'text-neutral-400 hover:text-neutral-200'}`}
-        >
-          <CopyPlus strokeWidth={activeTab === 'repeated' ? 2.5 : 2} size={15} className="mb-0.5" />
-          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium">Repetidas</span>
+          <BarChart3 strokeWidth={activeTab === 'charts' ? 2.5 : 2} size={15} className="mb-0.5" />
+          <span className="text-[6.5px] min-[350px]:text-[7px] sm:text-[8px] tracking-tighter uppercase font-medium font-sans">Gráficos</span>
         </button>
 
         <button 
