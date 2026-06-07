@@ -35,6 +35,11 @@ export default function QuickAdd({
   const [showGuide, setShowGuide] = useState(false);
 
   const getBackgroundBaseUrl = () => {
+    // Si la app está alojada en GitHub Pages (que no tiene servidor de fondo),
+    // forzamos el uso del servidor en la nube de AI Studio para que la API funcione.
+    if (window.location.hostname.includes('github.io')) {
+      return `https://ais-pre-l4lqjoljtqai46mnuimvc7-369695665559.us-west2.run.app/api/add-shortcut?add=`;
+    }
     return `${window.location.origin}/api/add-shortcut?add=`;
   };
 
@@ -302,19 +307,8 @@ export default function QuickAdd({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6 pt-4 text-xs border-t border-neutral-900"
           >
-            {/* Github Pages Warning */}
-            {window.location.hostname.includes('github.io') && (
-               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex gap-3 items-start">
-                 <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
-                 <div>
-                   <span className="font-bold text-amber-500 block">Estás usando GitHub Pages</span>
-                   <p className="text-neutral-400 mt-1">Como tu app está alojada en GitHub Pages (no tiene servidor de fondo), el <span className="font-bold text-white">MÉTODO 1 (De Fondo) NO funcionará</span>. Por favor, utilizá directamente el <strong className="text-white">MÉTODO 2 (Abrir App)</strong> para interactuar con la pantalla.</p>
-                 </div>
-               </div>
-            )}
-
             {/* Opción A: Segundo Plano */}
-            <div className={`bg-neutral-900/40 border border-neutral-800 rounded-2xl p-4 space-y-3 ${window.location.hostname.includes('github.io') ? 'opacity-50 pointer-events-none' : ''}`}>
+            <div className={`bg-neutral-900/40 border border-neutral-800 rounded-2xl p-4 space-y-3`}>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-neon-cyan animate-ping" />
                 <h4 className="text-sm font-bold text-neon-cyan tracking-tight uppercase">
@@ -349,15 +343,20 @@ export default function QuickAdd({
 
               <div className="space-y-2 pt-2">
                 <span className="text-[10px] text-neutral-400 font-mono tracking-wider uppercase block">Paso B: Crear el Atajo en tu iPhone (Solución "Texto Enriquecido")</span>
-                <p className="text-[11px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded">⚠️ Si te da el error de "Texto Enriquecido", es por los espacios. Seguí los pasos exactamente así:</p>
-                <ol className="list-decimal pl-5 space-y-2 text-neutral-300">
-                  <li>Abrí la app <strong className="text-white">Atajos</strong> en tu iPhone y tocá <strong className="text-white">+</strong> para crear uno nuevo.</li>
-                  <li>Agregá la acción <strong className="text-white">Solicitar entrada</strong> (Ask for Input) con la pregunta: <em className="text-neutral-400">"¿Qué figuritas querés agregar?"</em>.</li>
-                  <li><span className="text-neon-cyan">¡MUY IMPORTANTE!</span> Agregá la acción <strong className="text-white">Codificar URL</strong> (URL Encode). Asegurate de que diga "Codificar <strong className="text-white">Entrada Provista</strong>". (Esto elimina los espacios y resuelve el error de texto enriquecido).</li>
-                  <li>Ahora agregá la acción <strong className="text-white">URL</strong> y pegá el <strong>Enlace API</strong> que copiaste. Justo al final (después del "="), insertá la variable rápida <strong className="text-neon-cyan">Texto codificado como URL</strong>.</li>
-                  <li>Agregá la acción <strong className="text-white">Obtener contenido de URL</strong> (Get contents of URL). Debería decir "de URL".</li>
-                  <li>Agregá la acción <strong className="text-white">Mostrar alerta</strong> y pasale la variable que dice <strong className="text-neon-cyan font-mono">Contenido de la URL</strong>.</li>
-                  <li>¡Listo! Guardalo con un nombre genial y agregalo a tu pantalla de inicio como Widget o Icono.</li>
+                <div className="bg-red-500/10 border border-red-500/30 p-2.5 rounded-lg mb-2">
+                  <p className="text-[11px] text-red-400 leading-relaxed">
+                    ⚠️ <strong className="text-white">ERROR COMÚN:</strong> Si te da el error de "Texto Enriquecido", es porque pegaste el enlace con la variable <em>directamente</em> adentro de "Obtener contenido de URL". <strong className="text-white">Apple ya no permite hacer eso.</strong> Tenés que usar la acción intermedia llamada "URL" como dice el paso 2.
+                  </p>
+                </div>
+                <ol className="list-decimal pl-5 space-y-3 text-neutral-300">
+                  <li>Agregá la acción <strong className="text-white">Solicitar entrada</strong> (Solicitar `Texto` con "¿Qué figurita querés agregar?").</li>
+                  <li className="bg-amber-500/10 border border-amber-500/20 p-2 rounded -ml-2">
+                    <strong className="text-neon-cyan block mb-1">¡EL TRUCO ESTÁ ACÁ! ⬇️</strong>
+                    Agregá la acción <strong className="text-white">URL</strong> (solita, la que tiene un icono de mundo azul).<br/>Adentro de esa acción pegá el Enlace API que copiaste arriba, y justo al final (después del `=`) meté la variable rápida <strong className="text-white bg-black px-1 rounded">Entrada provista</strong>. Toca la variable y asegurate de que su tipo diga "Texto".
+                  </li>
+                  <li>Agregá la acción <strong className="text-white">Obtener contenido de URL</strong>. Automáticamente va a tomar la acción `URL` del paso anterior.</li>
+                  <li>Agregá la acción <strong className="text-white">Mostrar alerta</strong> y ponele la variable <strong className="text-neon-cyan font-mono">Contenido de la URL</strong> (para que te muestre el resumen al terminar).</li>
+                  <li>¡Y listo! Guardalo y probalo.</li>
                 </ol>
               </div>
 
@@ -370,11 +369,11 @@ export default function QuickAdd({
             </div>
 
             {/* Opción B: Abrir App */}
-            <div className={`bg-neutral-900/20 border border-neutral-900 rounded-2xl p-4 space-y-3 ${window.location.hostname.includes('github.io') ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : ''}`}>
+            <div className={`bg-neutral-900/20 border border-neutral-900 rounded-2xl p-4 space-y-3`}>
               <div className="flex items-center gap-2">
                 <Smartphone className="text-neutral-400" size={16} />
                 <h4 className="text-xs font-bold text-neutral-300 tracking-tight uppercase">
-                  MÉTODO 2: CARGA ABRIENDO LA APP {window.location.hostname.includes('github.io') && <span className="text-neon-cyan">(Recomendado)</span>}
+                  MÉTODO 2: CARGA ABRIENDO LA APP
                 </h4>
               </div>
               <p className="text-neutral-400 leading-relaxed">
