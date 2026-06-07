@@ -13,6 +13,7 @@ import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, H
 import Missing from './components/Missing';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
+import QuickAdd from './components/QuickAdd';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
@@ -41,11 +42,60 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts'>('album');
-  const [isLoaded, setIsLoaded] = useState(false);
-  const [ownedStickers, setOwnedStickers] = useState<Set<string>>(new Set());
-  const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>({});
-  const [activities, setActivities] = useState<ActivityLog[]>([]);
+  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts' | 'quickadd'>('album');
+  
+  // Dual storing: Synchronously load states right at boot so they are instantly ready offline
+  const [ownedStickers, setOwnedStickers] = useState<Set<string>>(() => {
+    try {
+      const cached = localStorage.getItem('cov_owned_stickers');
+      return cached ? new Set(JSON.parse(cached)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
+
+  const [repeatedStickers, setRepeatedStickers] = useState<Record<string, number>>(() => {
+    try {
+      const cached = localStorage.getItem('cov_repeated_stickers');
+      return cached ? JSON.parse(cached) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [activities, setActivities] = useState<ActivityLog[]>(() => {
+    try {
+      const cached = localStorage.getItem('cov_activities');
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [isLoaded, setIsLoaded] = useState(() => {
+    try {
+      // If we have cached sticker information inside localstorage, skip blocking loading spinner
+      return localStorage.getItem('cov_owned_stickers') !== null;
+    } catch {
+      return false;
+    }
+  });
+
+  const [isOnline, setIsOnline] = useState(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  // Monitor connectivity updates
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Listen to Firestore for global album
   useEffect(() => {
@@ -56,21 +106,60 @@ export default function App() {
         const data = docSnap.data();
         if (data.ownedStickers && Array.isArray(data.ownedStickers)) {
           setOwnedStickers(new Set(data.ownedStickers));
+          try {
+            localStorage.setItem('cov_owned_stickers', JSON.stringify(data.ownedStickers));
+          } catch (e) {
+            console.error(e);
+          }
         }
         if (data.repeatedStickers && Array.isArray(data.repeatedStickers)) {
           setRepeatedStickers(deserializeRepeated(data.repeatedStickers));
+          try {
+            localStorage.setItem('cov_repeated_stickers', JSON.stringify(deserializeRepeated(data.repeatedStickers)));
+          } catch (e) {
+            console.error(e);
+          }
         }
         if (data.activities && Array.isArray(data.activities)) {
           setActivities(data.activities);
+          try {
+            localStorage.setItem('cov_activities', JSON.stringify(data.activities));
+          } catch (e) {
+            console.error(e);
+          }
         }
       } else {
-        setOwnedStickers(new Set());
-        setRepeatedStickers({});
-        setActivities([]);
+        // If snapshot is empty, clean local state only if we don't have cached data offline
+        try {
+          if (!localStorage.getItem('cov_owned_stickers')) {
+            setOwnedStickers(new Set());
+            setRepeatedStickers({});
+            setActivities([]);
+          }
+        } catch {
+          setOwnedStickers(new Set());
+          setRepeatedStickers({});
+          setActivities([]);
+        }
       }
       setIsLoaded(true);
     }, (error) => {
       console.error("Firestore Listen Error:", error);
+      
+      // If offline/listen failed, use the LocalStorage cached states so work is never lost
+      try {
+        const cachedOwned = localStorage.getItem('cov_owned_stickers');
+        if (cachedOwned) setOwnedStickers(new Set(JSON.parse(cachedOwned)));
+        
+        const cachedRepeated = localStorage.getItem('cov_repeated_stickers');
+        if (cachedRepeated) setRepeatedStickers(JSON.parse(cachedRepeated));
+        
+        const cachedActivities = localStorage.getItem('cov_activities');
+        if (cachedActivities) setActivities(JSON.parse(cachedActivities));
+      } catch (cacheErr) {
+        console.error("Local storage sync fallback failed:", cacheErr);
+      }
+
       setIsLoaded(true); 
       try {
         handleFirestoreError(error, OperationType.GET, `albums/global`);
@@ -82,7 +171,121 @@ export default function App() {
     return () => unsubscribe();
   }, []);
 
+  // Check URL parameters for shortcut/PWA actions on startup
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get('action');
+    const addQuery = urlParams.get('add');
+    
+    if (action === 'quickadd' || addQuery) {
+      setActiveTab('quickadd');
+    } else if (action === 'scanner') {
+      setActiveTab('scanner');
+    }
+
+    const handleShiftTab = (e: Event) => {
+      const detail = (e as CustomEvent).detail;
+      if (detail) {
+        setActiveTab(detail as any);
+      }
+    };
+    window.addEventListener('shift-tab', handleShiftTab);
+    return () => window.removeEventListener('shift-tab', handleShiftTab);
+  }, []);
+
+  // Process auto-add parameter strictly AFTER database is loaded
+  const [hasProcessedAutoAdd, setHasProcessedAutoAdd] = useState(false);
+  const [autoAddStatus, setAutoAddStatus] = useState<{
+    added: string[];
+    repeated: string[];
+    invalid: string[];
+  } | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && !hasProcessedAutoAdd) {
+      const urlParams = new URLSearchParams(window.location.search);
+      const addQuery = urlParams.get('add');
+      if (addQuery) {
+        setHasProcessedAutoAdd(true);
+        // Process the codes instantly
+        import('./data/stickers').then(({ parseCodesFromString }) => {
+          const parsed = parseCodesFromString(addQuery);
+          if (parsed.length > 0) {
+            let nextOwned = new Set<string>(ownedStickers);
+            let nextRepeated = { ...repeatedStickers };
+            let addedList: string[] = [];
+            let repeatedList: string[] = [];
+            
+            parsed.forEach(({ foundPrefix, num }) => {
+              const id = foundPrefix === 'FWC' && num === 0 ? '00' : `${foundPrefix}-${num}`;
+              
+              if (!nextOwned.has(id)) {
+                nextOwned.add(id);
+                addedList.push(id);
+              } else {
+                nextRepeated[id] = (nextRepeated[id] || 0) + 1;
+                repeatedList.push(id);
+              }
+            });
+            
+            const addedText = addedList.length > 0 ? `Álbum: ${addedList.join(', ')}` : '';
+            const repeatedText = repeatedList.length > 0 ? `Repetidas: ${repeatedList.join(', ')}` : '';
+            const joiner = addedText && repeatedText ? ' | ' : '';
+            const actionText = `[Atajo iOS] Se cargaron figuritas. ${addedText}${joiner}${repeatedText}`;
+            
+            addActivity(actionText).then((nextAct) => {
+              setOwnedStickers(nextOwned);
+              setRepeatedStickers(nextRepeated);
+              persistToDB(nextOwned, nextRepeated, nextAct);
+              setAutoAddStatus({
+                added: addedList,
+                repeated: repeatedList,
+                invalid: []
+              });
+            });
+          } else {
+            setAutoAddStatus({
+              added: [],
+              repeated: [],
+              invalid: [addQuery]
+            });
+          }
+        });
+      }
+    }
+  }, [isLoaded, hasProcessedAutoAdd, ownedStickers, repeatedStickers]);
+
+  const handleQuickAddManual = async (stickersList: { id: string; count: number }[], sourceText: string) => {
+    let nextOwned = new Set<string>(ownedStickers);
+    let nextRepeated = { ...repeatedStickers };
+    
+    stickersList.forEach(({ id, count }) => {
+      if (!nextOwned.has(id)) {
+        nextOwned.add(id);
+        if (count > 1) {
+          nextRepeated[id] = (nextRepeated[id] || 0) + (count - 1);
+        }
+      } else {
+        nextRepeated[id] = (nextRepeated[id] || 0) + count;
+      }
+    });
+
+    setOwnedStickers(nextOwned);
+    setRepeatedStickers(nextRepeated);
+    const nextActivities = await addActivity(sourceText);
+    await persistToDB(nextOwned, nextRepeated, nextActivities);
+  };
+
   const persistToDB = async (newOwned: Set<string>, newRepeated: Record<string, number>, newActivities: ActivityLog[] = activities) => {
+    // Write and back up locally first to guarantee zero-latency offline storage
+    try {
+      localStorage.setItem('cov_owned_stickers', JSON.stringify(Array.from(newOwned)));
+      localStorage.setItem('cov_repeated_stickers', JSON.stringify(newRepeated));
+      localStorage.setItem('cov_activities', JSON.stringify(newActivities));
+    } catch (e) {
+      console.warn("Storage writing failed:", e);
+    }
+
     try {
       const docRef = doc(db, 'albums', 'global');
       await setDoc(docRef, {
@@ -92,7 +295,12 @@ export default function App() {
         updatedAt: serverTimestamp()
       }, { merge: true });
     } catch (e) {
-      handleFirestoreError(e, OperationType.WRITE, `albums/global`);
+      console.warn("DB syncing failed (will sync later when online):", e);
+      try {
+        handleFirestoreError(e, OperationType.WRITE, `albums/global`);
+      } catch (err) {
+        // Safe catch
+      }
     }
   };
 
@@ -262,13 +470,22 @@ export default function App() {
            </div>
 
            {/* Cloud Sync Status */}
-           <div className="flex items-center gap-1.5 bg-neutral-900 border border-neutral-800 px-2.5 py-1 rounded-full select-none">
-             <span className="relative flex h-1.5 w-1.5">
-               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-               <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green shadow-[0_0_6px_#39ff14]"></span>
-             </span>
-             <span className="text-[9px] font-medium tracking-wide text-neutral-400 uppercase">Sincronizado</span>
-           </div>
+           {isOnline ? (
+             <div className="flex items-center gap-1.5 bg-neutral-900/60 border border-neutral-800 px-2.5 py-1 rounded-full select-none transition-all duration-300">
+               <span className="relative flex h-1.5 w-1.5">
+                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-neon-green shadow-[0_0_6px_#39ff14]"></span>
+               </span>
+               <span className="text-[9px] font-medium tracking-wide text-neutral-400 uppercase">Sincronizado</span>
+             </div>
+           ) : (
+             <div className="flex items-center gap-1.5 bg-amber-950/20 border border-amber-900/40 px-2.5 py-1 rounded-full select-none transition-all duration-300 animate-pulse">
+               <span className="relative flex h-1.5 w-1.5">
+                 <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-amber-500 shadow-[0_0_6px_#f59e0b]"></span>
+               </span>
+               <span className="text-[9px] font-bold tracking-wide text-amber-500 uppercase">Modo Offline</span>
+             </div>
+           )}
 
          </div>
       </header>
@@ -282,8 +499,18 @@ export default function App() {
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
+            <div className={activeTab === 'quickadd' ? 'block' : 'hidden'}>
+              <QuickAdd 
+                ownedStickers={ownedStickers} 
+                repeatedStickers={repeatedStickers} 
+                onAddStickers={handleQuickAddManual}
+                autoAddStatus={autoAddStatus}
+                onBackToAlbum={() => setActiveTab('album')}
+                isOnline={isOnline}
+              />
+            </div>
             <div className={activeTab === 'album' ? 'block' : 'hidden'}>
-              <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} updateRepeated={updateRepeated} />
+              <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} updateRepeated={updateRepeated} isOnline={isOnline} />
             </div>
             <div className={activeTab === 'charts' ? 'block' : 'hidden'}>
               <ChartsView ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} />

@@ -1,0 +1,343 @@
+import React, { useState } from 'react';
+import { parseCodesFromString } from '../data/stickers';
+import { Sparkles, CheckCircle2, ArrowLeft, Send, HelpCircle, Smartphone, Copy, Check } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
+
+interface QuickAddProps {
+  ownedStickers: Set<string>;
+  repeatedStickers: Record<string, number>;
+  onAddStickers: (stickersList: { id: string; count: number }[], sourceText: string) => Promise<void>;
+  autoAddStatus: {
+    added: string[];
+    repeated: string[];
+    invalid: string[];
+  } | null;
+  onBackToAlbum: () => void;
+  isOnline: boolean;
+}
+
+export default function QuickAdd({
+  ownedStickers,
+  repeatedStickers,
+  onAddStickers,
+  autoAddStatus,
+  onBackToAlbum,
+  isOnline
+}: QuickAddProps) {
+  const [inputValue, setInputValue] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
+  const [manualAddStatus, setManualAddStatus] = useState<{
+    added: string[];
+    repeated: string[];
+  } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
+  const [showGuide, setShowGuide] = useState(false);
+
+  // Parse and process manually entered stickers
+  const handleManualAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!inputValue.trim()) return;
+
+    setIsSaving(true);
+    setManualAddStatus(null);
+
+    // Simulate small network delay or run sync
+    setTimeout(async () => {
+      const parsed = parseCodesFromString(inputValue);
+      if (parsed.length > 0) {
+        let addedList: string[] = [];
+        let repeatedList: string[] = [];
+
+        const preparedList = parsed.map(({ foundPrefix, num }) => {
+          const id = foundPrefix === 'FWC' && num === 0 ? '00' : `${foundPrefix}-${num}`;
+          const count = 1;
+          
+          if (!ownedStickers.has(id)) {
+            addedList.push(id);
+          } else {
+            repeatedList.push(id);
+          }
+
+          return { id, count };
+        });
+
+        const addedText = addedList.length > 0 ? `Agregadas al álbum: ${addedList.join(', ')}.` : '';
+        const repeatedText = repeatedList.length > 0 ? `Agregadas a repetidas: ${repeatedList.join(', ')}.` : '';
+        const sourceText = `[Agregado Rápido Manual] ${addedText} ${repeatedText}`.trim();
+
+        await onAddStickers(preparedList, sourceText);
+        setManualAddStatus({
+          added: addedList,
+          repeated: repeatedList
+        });
+        setInputValue('');
+      } else {
+        alert("No se reconocieron códigos válidos de figuritas. Ejemplo: ARG 10, BRA 5");
+      }
+      setIsSaving(false);
+    }, 450);
+  };
+
+  const copyShortcutUrl = () => {
+    const quickAddUrl = `${window.location.origin}${window.location.pathname}?add=`;
+    navigator.clipboard.writeText(quickAddUrl).then(() => {
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 2000);
+    });
+  };
+
+  return (
+    <div className="max-w-xl mx-auto py-2 px-1 text-neutral-100">
+      
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <button 
+          onClick={onBackToAlbum}
+          className="flex items-center gap-1 text-xs text-neutral-400 hover:text-white transition-colors bg-neutral-900 border border-neutral-800 py-1.5 px-3 rounded-xl cursor-pointer"
+        >
+          <ArrowLeft size={14} />
+          <span>Volver al Álbum</span>
+        </button>
+
+        <span className="text-[10px] uppercase font-mono tracking-wider text-neon-cyan text-neon-cyan-glow">
+          Modo Atajos / iPhone
+        </span>
+      </div>
+
+      {/* Auto Add Success Banner (when coming directly from a URL link like Siri Shortcuts) */}
+      <AnimatePresence>
+        {autoAddStatus && (
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="mb-8 p-6 rounded-2xl bg-gradient-to-b from-neutral-900 to-neutral-950 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] relative overflow-hidden"
+          >
+            <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 rounded-full blur-2xl -z-10" />
+            <div className="flex items-start gap-4">
+              <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 mt-0.5">
+                <CheckCircle2 size={24} />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-display font-black text-lg text-emerald-400 tracking-tight mb-1">
+                  ¡Sincronización Exitosa!
+                </h3>
+                <p className="text-xs text-neutral-400 leading-relaxed mb-4">
+                  Las figuritas del enlace se guardaron automáticamente en tu álbum digital y se sincronizaron con la nube.
+                </p>
+
+                {autoAddStatus.added.length > 0 && (
+                  <div className="mb-2">
+                    <span className="text-[10px] text-emerald-400/80 font-mono tracking-wider uppercase block mb-1">Añadidas al Álbum ({autoAddStatus.added.length})</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {autoAddStatus.added.map(code => (
+                        <span key={code} className="bg-neutral-900 border border-emerald-500/20 text-emerald-400 text-xs font-mono px-2 py-0.5 rounded">
+                          {code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {autoAddStatus.repeated.length > 0 && (
+                  <div>
+                    <span className="text-[10px] text-amber-400/80 font-mono tracking-wider uppercase block mb-1">Añadidas a Repetidas ({autoAddStatus.repeated.length})</span>
+                    <div className="flex flex-wrap gap-1.5">
+                      {autoAddStatus.repeated.map(code => (
+                        <span key={code} className="bg-neutral-900 border border-amber-500/20 text-amber-400 text-xs font-mono px-2 py-0.5 rounded">
+                          {code}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {autoAddStatus.added.length === 0 && autoAddStatus.repeated.length === 0 && (
+                  <p className="text-xs text-amber-400/80 font-medium">No se detectaron figuritas válidas en el enlace.</p>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Manual Quick Add Action Panel */}
+      <div className="bg-neutral-950 border border-neutral-900 rounded-3xl p-6 mb-6 shadow-2xl relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-44 h-44 bg-neon-cyan/5 rounded-full blur-3xl -z-10" />
+        
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 rounded-lg bg-neutral-900 border border-neon-cyan/20 text-neon-cyan flex items-center justify-center">
+            <Sparkles size={16} />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-white tracking-tight leading-tight">Agregar Figuritas al Instante</h2>
+            <p className="text-[10px] text-neutral-400">Perfecto para dictar por voz o escribir rápido</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleManualAdd} className="space-y-4">
+          <div>
+            <textarea
+              rows={2}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              placeholder="Ej: ARG 10, BRA 4, MEX 15, FWC 0..."
+              disabled={isSaving}
+              className="w-full bg-neutral-900/60 border border-neutral-800 rounded-2xl p-4 text-sm font-sans placeholder-neutral-600 focus:outline-none focus:border-neon-cyan/50 focus:ring-1 focus:ring-neon-cyan/30 text-white disabled:opacity-50 transition-all resize-none"
+            />
+            <p className="text-[9px] text-neutral-500 mt-1.5 leading-relaxed">
+              * Escribí o dictá los códigos libres. El sistema limpia símbolos, guiones y letras de forma inteligente (ej: podés dictar "Argentina diez brasil cuatro").
+            </p>
+          </div>
+
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-[9px] font-mono tracking-wider text-neutral-400">
+              {isOnline ? "● CONECTADO EN TIEMPO REAL" : "○ MODO RETENIDO OFFLINE"}
+            </span>
+
+            <button
+              Type="submit"
+              Disabled={isSaving || !inputValue.trim()}
+              ClassName="flex items-center gap-2 bg-neon-cyan hover:bg-neon-cyan/95 text-black font-semibold text-xs py-2 px-5 rounded-xl cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_12px_rgba(0,243,255,0.25)] hover:shadow-[0_0_15px_rgba(0,243,255,0.4)]"
+            >
+              {isSaving ? (
+                <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <>
+                  <Send size={12} />
+                  <span>Cargar Figuritas</span>
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+
+        {/* Manual Add Result Output */}
+        <AnimatePresence>
+          {manualAddStatus && (
+            <motion.div
+              Initial={{ opacity: 0, height: 0 }}
+              Animate={{ opacity: 1, height: 'auto' }}
+              Exit={{ opacity: 0, height: 0 }}
+              ClassName="mt-5 pt-4 border-t border-neutral-900 space-y-3"
+            >
+              <h4 className="text-xs font-semibold text-emerald-400">¡Figuritas Procesadas!</h4>
+              
+              {manualAddStatus.added.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[9px] text-neutral-400 block font-mono">AGREGADAS AL ÁLBUM</span>
+                  <div className="flex flex-wrap gap-1">
+                    {manualAddStatus.added.map(code => (
+                      <span key={code} className="bg-neutral-900 border border-emerald-500/20 text-emerald-400 text-[10px] font-mono px-2 py-0.5 rounded">
+                        {code}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {manualAddStatus.repeated.length > 0 && (
+                <div className="space-y-1">
+                  <span className="text-[9px] text-neutral-400 block font-mono">CONVERTIDAS EN REPETIDAS</span>
+                  <div className="flex flex-wrap gap-1">
+                    {manualAddStatus.repeated.map(code => (
+                      <span key={code} className="bg-neutral-900 border border-amber-500/20 text-amber-400 text-[10px] font-mono px-2 py-0.5 rounded">
+                        {code}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Guide Toggle Section */}
+      <div className="bg-neutral-950 border border-neutral-900 rounded-3xl p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <Smartphone className="text-neon-cyan" size={18} />
+            <h3 className="text-xs font-bold text-white tracking-widest uppercase">¿Cómo Funciona en tu iPhone?</h3>
+          </div>
+          <button 
+            onClick={() => setShowGuide(!showGuide)}
+            className="text-xs text-neon-cyan hover:underline cursor-pointer bg-neutral-900 border border-neutral-800 py-1 px-2.5 rounded-lg flex items-center gap-1"
+          >
+            <HelpCircle size={12} />
+            <span>{showGuide ? "Ocultar Guía" : "Ver Instrucciones"}</span>
+          </button>
+        </div>
+
+        <p className="text-xs text-neutral-400 leading-relaxed">
+          Diseñamos esta vista para que puedas vincular el álbum digital con la app nativa <strong className="text-white">Atajos (Shortcuts)</strong> de tu iPhone. Esto te permite dictarle figuritas a Siri o tipearlas directo desde la pantalla de inicio sin tener que abrir Safari ni cargar el álbum entero.
+        </p>
+
+        {showGuide && (
+          <motion.div 
+            initial={{ opacity: 0, y: -5 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-4 pt-2 text-xs border-t border-neutral-900"
+          >
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
+                Paso 1: Copiar tu enlace base de atajos
+              </h4>
+              <p className="text-neutral-400 leading-relaxed pl-3">
+                Copiá este enlace especial. Los atajos de tu iPhone le enviarán la figurita directamente al final de esta URL.
+              </p>
+              
+              <div className="flex items-center gap-2 pl-3">
+                <input 
+                  type="text" 
+                  readOnly
+                  value={`${window.location.origin}${window.location.pathname}?add=`}
+                  className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs font-mono text-neutral-400 flex-1 overflow-x-auto focus:outline-none"
+                />
+                <button
+                  onClick={copyShortcutUrl}
+                  className="bg-neon-cyan hover:bg-neon-cyan/95 text-black p-2 rounded-xl cursor-pointer transition-colors"
+                >
+                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                </button>
+              </div>
+              {copiedLink && (
+                <span className="text-[10px] text-emerald-400 font-mono pl-3 block">¡Enlace copiado al portapapeles!</span>
+              )}
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
+                Paso 2: Crear el Atajo en tu iPhone
+              </h4>
+              <ol className="list-decimal pl-7 space-y-1.5 text-neutral-400 leading-relaxed">
+                <li>Abrí la app <strong className="text-white">Atajos</strong> (Shortcuts) en tu iPhone.</li>
+                <li>Tocá el botón <strong className="text-white">+</strong> para crear uno nuevo.</li>
+                <li>Buscá la acción <strong className="text-white">Solicitar entrada de texto</strong> y configurala como: <em className="text-neutral-500 italic">"¿Qué figuritas querés agregar?"</em></li>
+                <li>Buscá la acción <strong className="text-white">Abrir URL</strong>.</li>
+                <li>En el campo URL, pegá el enlace que copiaste arriba en el Paso 1 y arrastrá la variable <strong className="text-neon-cyan">Entrada provista</strong> justo después de <code className="text-white">?add=</code></li>
+                <li>Nombrá tu atajo como <strong className="text-white">"Guardar Figurita"</strong> y elegí un icono deportivo o brillante.</li>
+              </ol>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
+                Paso 3: Colocar el Atajo en tu pantalla de inicio
+              </h4>
+              <p className="text-neutral-400 leading-relaxed pl-3">
+                Volvé a tu pantalla de inicio en el iPhone. Mantené presionado el fondo, tocá el <strong className="text-white">+</strong> (arriba a la izquierda) para añadir un Widget, buscá <strong className="text-white">Atajos</strong>, añadí el atajo "Guardar Figurita" ¡y listo!
+              </p>
+              <p className="text-neutral-400 leading-relaxed pl-3 font-semibold text-neon-cyan">
+                ¡Ahora, cada vez que toques el Widget, tu iPhone te pedirá que escribas/dictes marcas (como "ARG 10 ESP 4") y las agregará al instante de forma automática!
+              </p>
+            </div>
+          </motion.div>
+        )}
+      </div>
+
+    </div>
+  );
+}

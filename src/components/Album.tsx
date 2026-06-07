@@ -3,15 +3,17 @@ import { WORLD_CUP_TEAMS, getAllStickers, StickerDef } from '../data/stickers';
 import { Check, ChevronDown, ChevronRight, Search, X, Copy, CheckCircle2, TrendingUp, Trophy, Library, Percent, FileQuestion, Users, Sparkles } from 'lucide-react';
 import Missing from './Missing';
 import Repeated from './Repeated';
+import { motion, AnimatePresence } from 'motion/react';
 
 interface AlbumProps {
   ownedStickers: Set<string>;
   repeatedStickers: Record<string, number>;
   toggleOwned: (id: string, forceStatus?: boolean, sourceContext?: string) => void;
   updateRepeated: (id: string, delta: number, sourceContext?: string) => void;
+  isOnline?: boolean;
 }
 
-export default function Album({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated }: AlbumProps) {
+export default function Album({ ownedStickers, repeatedStickers, toggleOwned, updateRepeated, isOnline = true }: AlbumProps) {
   const [subTab, setSubTab] = useState<'all' | 'missing' | 'repeated'>('all');
   const [expandedTeam, setExpandedTeam] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -131,57 +133,123 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned, up
   return (
     <div className="w-full max-w-4xl mx-auto pb-24 text-neutral-100 font-sans">
       
-      {/* Selector de subapartados */}
-      <div className="flex bg-neutral-950/80 p-1 rounded-xl border border-neutral-900 mb-6 max-w-md mx-auto shadow-md">
+      {/* Selector de subapartados con píldora animada deslizante */}
+      <div className="flex bg-neutral-950/80 p-1 rounded-xl border border-neutral-900 mb-6 max-w-md mx-auto shadow-md relative">
         <button
           onClick={() => setSubTab('all')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-all duration-200 cursor-pointer ${
+          className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-colors duration-250 cursor-pointer select-none ${
             subTab === 'all'
-              ? 'bg-neutral-900 border border-neutral-800 text-white shadow-[0_0_8px_rgba(0,243,255,0.15)] text-neon-cyan'
-              : 'text-neutral-450 hover:text-neutral-200'
+              ? 'text-white'
+              : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <Library size={13} />
-          Álbum
+          {subTab === 'all' && (
+            <motion.div
+              layoutId="activeSubTabPill"
+              className="absolute inset-0 bg-neutral-900 border border-neutral-800 rounded-lg shadow-[0_0_8px_rgba(0,243,255,0.15)]"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <span className="relative z-25 flex items-center gap-1.5 text-neon-cyan">
+            <Library size={13} />
+            Álbum
+          </span>
         </button>
         <button
           onClick={() => setSubTab('missing')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-all duration-200 cursor-pointer ${
+          className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-colors duration-250 cursor-pointer select-none ${
             subTab === 'missing'
-              ? 'bg-neutral-900 border border-neutral-800 text-white shadow-[0_0_8px_rgba(255,0,127,0.15)] text-neon-cyan'
-              : 'text-neutral-450 hover:text-neutral-200'
+              ? 'text-white'
+              : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <FileQuestion size={13} />
-          Faltantes
+          {subTab === 'missing' && (
+            <motion.div
+              layoutId="activeSubTabPill"
+              className="absolute inset-0 bg-neutral-900 border border-neutral-800 rounded-lg shadow-[0_0_8px_rgba(255,0,127,0.15)]"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <span className={`relative z-25 flex items-center gap-1.5 ${subTab === 'missing' ? 'text-neon-pink' : 'text-neutral-450'}`}>
+            <FileQuestion size={13} />
+            Faltantes
+          </span>
         </button>
         <button
           onClick={() => setSubTab('repeated')}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-all duration-200 cursor-pointer ${
+          className={`relative z-10 flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-xs leading-none uppercase font-display font-black tracking-wider transition-colors duration-250 cursor-pointer select-none ${
             subTab === 'repeated'
-              ? 'bg-neutral-900 border border-neutral-800 text-white shadow-[0_0_8px_rgba(245,158,11,0.15)] text-neon-cyan'
-              : 'text-neutral-450 hover:text-neutral-200'
+              ? 'text-white'
+              : 'text-neutral-500 hover:text-neutral-300'
           }`}
         >
-          <Copy size={13} />
-          Repetidas
+          {subTab === 'repeated' && (
+            <motion.div
+              layoutId="activeSubTabPill"
+              className="absolute inset-0 bg-neutral-900 border border-neutral-800 rounded-lg shadow-[0_0_8px_rgba(245,158,11,0.15)]"
+              transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+            />
+          )}
+          <span className={`relative z-25 flex items-center gap-1.5 ${subTab === 'repeated' ? 'text-amber-500' : 'text-neutral-450'}`}>
+            <Copy size={13} />
+            Repetidas
+          </span>
         </button>
       </div>
 
-      {subTab === 'missing' ? (
-        <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
-      ) : subTab === 'repeated' ? (
-        <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />
-      ) : (
-        <>
-          {/* Banner / Header Card - STRICTLY NOT STICKY AS PER USER REQUEST */}
-          <div className="px-6 py-6 bg-neutral-950/70 border border-neutral-900 rounded-2xl shadow-[0_0_15px_rgba(0,243,255,0.05)] neon-glow-card mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
-              <div className="flex flex-col">
-                <span className="text-[9.5px] font-bold text-neutral-500 uppercase tracking-widest mb-1 font-mono">Resumen de Colección Colectiva</span>
-                <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white flex items-center gap-2">
-                  Mi Álbum <span className="text-[10px] bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 py-0.5 px-2 rounded-full font-mono font-bold uppercase tracking-wider text-neon-cyan-glow">En Línea</span>
-                </h2>
+      <AnimatePresence mode="wait">
+        <motion.div
+          key={subTab}
+          initial={{ opacity: 0, y: 12, scale: 0.995 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -12, scale: 0.995 }}
+          transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+        >
+          {subTab === 'missing' ? (
+            <Missing ownedStickers={ownedStickers} toggleOwned={toggleOwned} />
+          ) : subTab === 'repeated' ? (
+            <Repeated ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} updateRepeated={updateRepeated} />
+          ) : (
+            <div>
+              {/* Banner / Header Card - STRICTLY NOT STICKY AS PER USER REQUEST */}
+              <div className="px-6 py-6 bg-neutral-950/70 border border-neutral-900 rounded-2xl shadow-[0_0_15px_rgba(0,243,255,0.05)] neon-glow-card mb-6">
+                
+                {/* iOS PWA Atajo Acceso Rápido Promoción */}
+                <div className="mb-5 p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs leading-relaxed relative overflow-hidden">
+                  <div className="flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20 text-neon-cyan mt-0.5">
+                      <Sparkles size={14} className="animate-pulse" />
+                    </div>
+                    <div>
+                      <span className="font-bold text-white block text-sm">⚡ Carga Figuritas al Instante (Atajos iPhone)</span>
+                      <span className="text-neutral-400 text-[11px] block mt-0.5">Agrega figuritas directamente desde tu Pantalla de Inicio usando la app Atajos o comandos de voz de Siri sin abrir la app.</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd' }));
+                    }}
+                    className="px-4 py-2 rounded-lg bg-neon-cyan text-black font-black font-sans uppercase text-[10px] tracking-wider hover:opacity-95 select-none cursor-pointer self-start md:self-auto shadow-[0_0_12px_rgba(0,243,255,0.4)] transition-all whitespace-nowrap"
+                  >
+                    Configurar Atajos
+                  </button>
+                </div>
+
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
+                  <div className="flex flex-col">
+                    <span className="text-[9.5px] font-bold text-neutral-500 uppercase tracking-widest mb-1 font-mono">Resumen de Colección Colectiva</span>
+                    <h2 className="text-2xl font-display font-black uppercase tracking-tight text-white flex items-center gap-2">
+                      Mi Álbum{' '}
+                      {isOnline ? (
+                        <span className="text-[10px] bg-neon-cyan/10 text-neon-cyan border border-neon-cyan/30 py-0.5 px-2 rounded-full font-mono font-bold uppercase tracking-wider text-neon-cyan-glow">
+                          En Línea
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-amber-950/30 text-amber-500 border border-amber-950/45 py-0.5 px-2 rounded-full font-mono font-bold uppercase tracking-wider shadow-[0_0_8px_rgba(245,158,11,0.15)]">
+                          Caché Local
+                        </span>
+                      )}
+                    </h2>
                 
                 <button 
                   onClick={copyMissingStickers}
@@ -383,8 +451,10 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned, up
               );
             })}
           </div>
-        </>
+        </div>
       )}
+        </motion.div>
+      </AnimatePresence>
     </div>
   );
 }
