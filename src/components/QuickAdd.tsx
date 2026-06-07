@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { parseCodesFromString } from '../data/stickers';
-import { Sparkles, CheckCircle2, ArrowLeft, Send, HelpCircle, Smartphone, Copy, Check } from 'lucide-react';
+import { Sparkles, CheckCircle2, ArrowLeft, Send, HelpCircle, Smartphone, Copy, Check, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface QuickAddProps {
@@ -219,9 +219,9 @@ export default function QuickAdd({
             </span>
 
             <button
-              Type="submit"
-              Disabled={isSaving || !inputValue.trim()}
-              ClassName="flex items-center gap-2 bg-neon-cyan hover:bg-neon-cyan/95 text-black font-semibold text-xs py-2 px-5 rounded-xl cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_12px_rgba(0,243,255,0.25)] hover:shadow-[0_0_15px_rgba(0,243,255,0.4)]"
+              type="submit"
+              disabled={isSaving || !inputValue.trim()}
+              className="flex items-center gap-2 bg-neon-cyan hover:bg-neon-cyan/95 text-black font-semibold text-xs py-2 px-5 rounded-xl cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-[0_0_12px_rgba(0,243,255,0.25)] hover:shadow-[0_0_15px_rgba(0,243,255,0.4)]"
             >
               {isSaving ? (
                 <div className="w-3.5 h-3.5 border-2 border-black border-t-transparent rounded-full animate-spin" />
@@ -234,15 +234,15 @@ export default function QuickAdd({
             </button>
           </div>
         </form>
-
+ 
         {/* Manual Add Result Output */}
         <AnimatePresence>
           {manualAddStatus && (
             <motion.div
-              Initial={{ opacity: 0, height: 0 }}
-              Animate={{ opacity: 1, height: 'auto' }}
-              Exit={{ opacity: 0, height: 0 }}
-              ClassName="mt-5 pt-4 border-t border-neutral-900 space-y-3"
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="mt-5 pt-4 border-t border-neutral-900 space-y-3"
             >
               <h4 className="text-xs font-semibold text-emerald-400">¡Figuritas Procesadas!</h4>
               
@@ -302,8 +302,19 @@ export default function QuickAdd({
             animate={{ opacity: 1, y: 0 }}
             className="space-y-6 pt-4 text-xs border-t border-neutral-900"
           >
+            {/* Github Pages Warning */}
+            {window.location.hostname.includes('github.io') && (
+               <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex gap-3 items-start">
+                 <AlertTriangle size={16} className="text-amber-500 shrink-0 mt-0.5" />
+                 <div>
+                   <span className="font-bold text-amber-500 block">Estás usando GitHub Pages</span>
+                   <p className="text-neutral-400 mt-1">Como tu app está alojada en GitHub Pages (no tiene servidor de fondo), el <span className="font-bold text-white">MÉTODO 1 (De Fondo) NO funcionará</span>. Por favor, utilizá directamente el <strong className="text-white">MÉTODO 2 (Abrir App)</strong> para interactuar con la pantalla.</p>
+                 </div>
+               </div>
+            )}
+
             {/* Opción A: Segundo Plano */}
-            <div className="bg-neutral-900/40 border border-neutral-800 rounded-2xl p-4 space-y-3">
+            <div className={`bg-neutral-900/40 border border-neutral-800 rounded-2xl p-4 space-y-3 ${window.location.hostname.includes('github.io') ? 'opacity-50 pointer-events-none' : ''}`}>
               <div className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-neon-cyan animate-ping" />
                 <h4 className="text-sm font-bold text-neon-cyan tracking-tight uppercase">
@@ -337,15 +348,16 @@ export default function QuickAdd({
               </div>
 
               <div className="space-y-2 pt-2">
-                <span className="text-[10px] text-neutral-400 font-mono tracking-wider uppercase block">Paso B: Crear el Atajo en tu iPhone</span>
+                <span className="text-[10px] text-neutral-400 font-mono tracking-wider uppercase block">Paso B: Crear el Atajo en tu iPhone (Solución "Texto Enriquecido")</span>
+                <p className="text-[11px] text-amber-500 bg-amber-500/10 px-2 py-1 rounded">⚠️ Si te da el error de "Texto Enriquecido", es por los espacios. Seguí los pasos exactamente así:</p>
                 <ol className="list-decimal pl-5 space-y-2 text-neutral-300">
                   <li>Abrí la app <strong className="text-white">Atajos</strong> en tu iPhone y tocá <strong className="text-white">+</strong> para crear uno nuevo.</li>
                   <li>Agregá la acción <strong className="text-white">Solicitar entrada</strong> (Ask for Input) con la pregunta: <em className="text-neutral-400">"¿Qué figuritas querés agregar?"</em>.</li>
-                  <li>Agregá la acción llamada <strong className="text-white">Obtener contenido de URL</strong> (Get contents of URL).</li>
-                  <li>Pegá el enlace API que copiaste arriba en esa acción de URL.</li>
-                  <li>Justo al final del enlace (después del "="), tocá la barra de variables rápidas arriba del teclado y seleccioná <strong className="text-neon-cyan">Entrada provista</strong> (o "Texto"). Te quedará: <code className="text-neutral-200 bg-black px-1 rounded text-[10px]">URL/add=[Entrada provista]</code>.</li>
-                  <li>Agregá la acción <strong className="text-white">Mostrar alerta</strong> (o "Mostrar resultado") y pasale la variable que dice <strong className="text-neon-cyan font-mono">Contenido de la URL</strong>.</li>
-                  <li>¡Listo! Guardalo con un nombre genial (ej: "Cargar Figuritas") y agregalo a tu pantalla de inicio como Widget o Icono.</li>
+                  <li><span className="text-neon-cyan">¡MUY IMPORTANTE!</span> Agregá la acción <strong className="text-white">Codificar URL</strong> (URL Encode). Asegurate de que diga "Codificar <strong className="text-white">Entrada Provista</strong>". (Esto elimina los espacios y resuelve el error de texto enriquecido).</li>
+                  <li>Ahora agregá la acción <strong className="text-white">URL</strong> y pegá el <strong>Enlace API</strong> que copiaste. Justo al final (después del "="), insertá la variable rápida <strong className="text-neon-cyan">Texto codificado como URL</strong>.</li>
+                  <li>Agregá la acción <strong className="text-white">Obtener contenido de URL</strong> (Get contents of URL). Debería decir "de URL".</li>
+                  <li>Agregá la acción <strong className="text-white">Mostrar alerta</strong> y pasale la variable que dice <strong className="text-neon-cyan font-mono">Contenido de la URL</strong>.</li>
+                  <li>¡Listo! Guardalo con un nombre genial y agregalo a tu pantalla de inicio como Widget o Icono.</li>
                 </ol>
               </div>
 
@@ -358,15 +370,15 @@ export default function QuickAdd({
             </div>
 
             {/* Opción B: Abrir App */}
-            <div className="bg-neutral-900/20 border border-neutral-900 rounded-2xl p-4 space-y-3">
+            <div className={`bg-neutral-900/20 border border-neutral-900 rounded-2xl p-4 space-y-3 ${window.location.hostname.includes('github.io') ? 'border-neon-cyan/50 shadow-[0_0_15px_rgba(0,243,255,0.1)]' : ''}`}>
               <div className="flex items-center gap-2">
                 <Smartphone className="text-neutral-400" size={16} />
                 <h4 className="text-xs font-bold text-neutral-300 tracking-tight uppercase">
-                  MÉTODO 2: CARGA CON APERTURA DE LA APP
+                  MÉTODO 2: CARGA ABRIENDO LA APP {window.location.hostname.includes('github.io') && <span className="text-neon-cyan">(Recomendado)</span>}
                 </h4>
               </div>
               <p className="text-neutral-400 leading-relaxed">
-                Este método abre la app para mostrar los resultados en pantalla al finalizar.
+                Este método abre la app para procesar las figuritas. Es simple y no requiere codificación de URL avanzada.
               </p>
 
               <div className="space-y-2">
@@ -393,7 +405,7 @@ export default function QuickAdd({
 
               <div className="space-y-1.5 pl-2 text-neutral-400">
                 <p>1. Creá un atajo con una sola acción: <strong className="text-neutral-200">Abrir URL</strong>.</p>
-                <p>2. Pegá el enlace anterior y configuralo para <strong className="text-neon-cyan font-mono">[Preguntar cada vez]</strong> al final.</p>
+                <p>2. Pegá el enlace anterior y configuralo para <strong className="text-neon-cyan font-mono">[Preguntar cada vez]</strong> (o Ask Each Time) justo al final después del igual.</p>
               </div>
             </div>
           </motion.div>
