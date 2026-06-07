@@ -225,14 +225,24 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned, up
                       <span className="text-neutral-400 text-[11px] block mt-0.5">Agrega figuritas directamente desde tu Pantalla de Inicio usando la app Atajos o comandos de voz de Siri sin abrir la app.</span>
                     </div>
                   </div>
-                  <button
-                    onClick={() => {
-                      window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd' }));
-                    }}
-                    className="px-4 py-2 rounded-lg bg-neon-cyan text-black font-black font-sans uppercase text-[10px] tracking-wider hover:opacity-95 select-none cursor-pointer self-start md:self-auto shadow-[0_0_12px_rgba(0,243,255,0.4)] transition-all whitespace-nowrap"
-                  >
-                    Configurar Atajos
-                  </button>
+                  <div className="flex flex-wrap gap-2 self-start md:self-auto">
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd-modal' }));
+                      }}
+                      className="px-3.5 py-2 rounded-lg bg-neon-cyan text-black font-black font-sans uppercase text-[10px] tracking-wider hover:opacity-95 select-none cursor-pointer shadow-[0_0_12px_rgba(0,243,255,0.4)] transition-all whitespace-nowrap"
+                    >
+                      ⚡ Abrir Cuadrito
+                    </button>
+                    <button
+                      onClick={() => {
+                        window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd' }));
+                      }}
+                      className="px-3.5 py-2 rounded-lg bg-transparent hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 font-bold font-sans uppercase text-[10px] tracking-wider select-none cursor-pointer transition-all whitespace-nowrap"
+                    >
+                      Configurar Siri/Widget
+                    </button>
+                  </div>
                 </div>
 
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">

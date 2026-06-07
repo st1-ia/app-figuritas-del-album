@@ -31,7 +31,20 @@ export default function QuickAdd({
     repeated: string[];
   } | null>(null);
   const [copiedLink, setCopiedLink] = useState(false);
+  const [copiedBackgroundLink, setCopiedBackgroundLink] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+
+  const getBackgroundBaseUrl = () => {
+    return `${window.location.origin}/api/add-shortcut?add=`;
+  };
+
+  const copyBackgroundShortcutUrl = () => {
+    const rawUrl = getBackgroundBaseUrl();
+    navigator.clipboard.writeText(rawUrl).then(() => {
+      setCopiedBackgroundLink(true);
+      setTimeout(() => setCopiedBackgroundLink(false), 2000);
+    });
+  };
 
   // Parse and process manually entered stickers
   const handleManualAdd = async (e: React.FormEvent) => {
@@ -79,11 +92,21 @@ export default function QuickAdd({
   };
 
   const copyShortcutUrl = () => {
-    const quickAddUrl = `${window.location.origin}${window.location.pathname}?add=`;
+    // If the user has a specific production site like GitHub Pages, use it or fallback to current origin
+    const currentUrl = window.location.origin.includes('github.io') || window.location.origin.includes('ais-')
+      ? 'https://st1-ia.github.io/app-figuritas-del-album/'
+      : `${window.location.origin}${window.location.pathname}`;
+    const quickAddUrl = `${currentUrl}?add=`;
     navigator.clipboard.writeText(quickAddUrl).then(() => {
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2000);
     });
+  };
+
+  const getBaseUrl = () => {
+    return window.location.origin.includes('github.io') || window.location.origin.includes('ais-')
+      ? 'https://st1-ia.github.io/app-figuritas-del-album/?add='
+      : `${window.location.origin}${window.location.pathname}?add=`;
   };
 
   return (
@@ -277,62 +300,101 @@ export default function QuickAdd({
           <motion.div 
             initial={{ opacity: 0, y: -5 }}
             animate={{ opacity: 1, y: 0 }}
-            className="space-y-4 pt-2 text-xs border-t border-neutral-900"
+            className="space-y-6 pt-4 text-xs border-t border-neutral-900"
           >
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-                Paso 1: Copiar tu enlace base de atajos
-              </h4>
-              <p className="text-neutral-400 leading-relaxed pl-3">
-                Copiá este enlace especial. Los atajos de tu iPhone le enviarán la figurita directamente al final de esta URL.
-              </p>
-              
-              <div className="flex items-center gap-2 pl-3">
-                <input 
-                  type="text" 
-                  readOnly
-                  value={`${window.location.origin}${window.location.pathname}?add=`}
-                  className="bg-neutral-900 border border-neutral-800 rounded-xl px-3 py-1.5 text-xs font-mono text-neutral-400 flex-1 overflow-x-auto focus:outline-none"
-                />
-                <button
-                  onClick={copyShortcutUrl}
-                  className="bg-neon-cyan hover:bg-neon-cyan/95 text-black p-2 rounded-xl cursor-pointer transition-colors"
-                >
-                  {copiedLink ? <Check size={14} /> : <Copy size={14} />}
-                </button>
+            {/* Opción A: Segundo Plano */}
+            <div className="bg-neutral-900/40 border border-neutral-800 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-neon-cyan animate-ping" />
+                <h4 className="text-sm font-bold text-neon-cyan tracking-tight uppercase">
+                  MÉTODO 1: CARGA DE FONDO (SÚPER RECOMENDADO 🔥)
+                </h4>
               </div>
-              {copiedLink && (
-                <span className="text-[10px] text-emerald-400 font-mono pl-3 block">¡Enlace copiado al portapapeles!</span>
-              )}
+              <p className="text-neutral-300 leading-relaxed">
+                Este método es el más mágico: <strong className="text-white">te permite dictar o escribir tús figuritas sin salir de tu pantalla de inicio ni abrir Safari</strong>. Guarda directamente en Firestore y te avisa con un globito en tu iPhone.
+              </p>
+
+              <div className="space-y-2 pt-1">
+                <span className="text-[10px] text-neutral-400 font-mono tracking-wider uppercase block">Paso A: Copiá tu enlace API de Fondo</span>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={getBackgroundBaseUrl()}
+                    className="bg-neutral-950 border border-neutral-800 rounded-xl px-3 py-1.5 text-[10px] font-mono text-neutral-400 flex-1 overflow-x-auto focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyBackgroundShortcutUrl}
+                    className="bg-neon-cyan hover:bg-neon-cyan/95 text-black p-2 rounded-xl cursor-pointer transition-colors"
+                  >
+                    {copiedBackgroundLink ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </div>
+                {copiedBackgroundLink && (
+                  <span className="text-[10px] text-emerald-400 font-mono block">¡Enlace API de fondo copiado!</span>
+                )}
+              </div>
+
+              <div className="space-y-2 pt-2">
+                <span className="text-[10px] text-neutral-400 font-mono tracking-wider uppercase block">Paso B: Crear el Atajo en tu iPhone</span>
+                <ol className="list-decimal pl-5 space-y-2 text-neutral-300">
+                  <li>Abrí la app <strong className="text-white">Atajos</strong> en tu iPhone y tocá <strong className="text-white">+</strong> para crear uno nuevo.</li>
+                  <li>Agregá la acción <strong className="text-white">Solicitar entrada</strong> (Ask for Input) con la pregunta: <em className="text-neutral-400">"¿Qué figuritas querés agregar?"</em>.</li>
+                  <li>Agregá la acción llamada <strong className="text-white">Obtener contenido de URL</strong> (Get contents of URL).</li>
+                  <li>Pegá el enlace API que copiaste arriba en esa acción de URL.</li>
+                  <li>Justo al final del enlace (después del "="), tocá la barra de variables rápidas arriba del teclado y seleccioná <strong className="text-neon-cyan">Entrada provista</strong> (o "Texto"). Te quedará: <code className="text-neutral-200 bg-black px-1 rounded text-[10px]">URL/add=[Entrada provista]</code>.</li>
+                  <li>Agregá la acción <strong className="text-white">Mostrar alerta</strong> (o "Mostrar resultado") y pasale la variable que dice <strong className="text-neon-cyan font-mono">Contenido de la URL</strong>.</li>
+                  <li>¡Listo! Guardalo con un nombre genial (ej: "Cargar Figuritas") y agregalo a tu pantalla de inicio como Widget o Icono.</li>
+                </ol>
+              </div>
+
+              <div className="bg-neutral-950/60 p-3 rounded-xl border border-neutral-900 text-neutral-400 space-y-1">
+                <span className="text-xs font-bold text-white block">💬 ¿Cómo se usa?</span>
+                <p className="leading-relaxed">
+                  Presionás el atajo en tu pantalla, te pregunta qué figuritas tenés, escribís o dictás <em className="text-neutral-300">"ARG 10, DE 5, SEN 1"</em> y al toque te salta un globito en tu pantalla diciendo: <strong className="text-neon-cyan">"Sincronizado: Cargar al Álbum: ARG-10..."</strong> sin abrir Safari ni la App. ¡Magia pura!
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-                Paso 2: Crear el Atajo en tu iPhone
-              </h4>
-              <ol className="list-decimal pl-7 space-y-1.5 text-neutral-400 leading-relaxed">
-                <li>Abrí la app <strong className="text-white">Atajos</strong> (Shortcuts) en tu iPhone.</li>
-                <li>Tocá el botón <strong className="text-white">+</strong> para crear uno nuevo.</li>
-                <li>Buscá la acción <strong className="text-white">Solicitar entrada de texto</strong> y configurala como: <em className="text-neutral-500 italic">"¿Qué figuritas querés agregar?"</em></li>
-                <li>Buscá la acción <strong className="text-white">Abrir URL</strong>.</li>
-                <li>En el campo URL, pegá el enlace que copiaste arriba en el Paso 1 y arrastrá la variable <strong className="text-neon-cyan">Entrada provista</strong> justo después de <code className="text-white">?add=</code></li>
-                <li>Nombrá tu atajo como <strong className="text-white">"Guardar Figurita"</strong> y elegí un icono deportivo o brillante.</li>
-              </ol>
-            </div>
+            {/* Opción B: Abrir App */}
+            <div className="bg-neutral-900/20 border border-neutral-900 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center gap-2">
+                <Smartphone className="text-neutral-400" size={16} />
+                <h4 className="text-xs font-bold text-neutral-300 tracking-tight uppercase">
+                  MÉTODO 2: CARGA CON APERTURA DE LA APP
+                </h4>
+              </div>
+              <p className="text-neutral-400 leading-relaxed">
+                Este método abre la app para mostrar los resultados en pantalla al finalizar.
+              </p>
 
-            <div className="space-y-2">
-              <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-neon-cyan" />
-                Paso 3: Colocar el Atajo en tu pantalla de inicio
-              </h4>
-              <p className="text-neutral-400 leading-relaxed pl-3">
-                Volvé a tu pantalla de inicio en el iPhone. Mantené presionado el fondo, tocá el <strong className="text-white">+</strong> (arriba a la izquierda) para añadir un Widget, buscá <strong className="text-white">Atajos</strong>, añadí el atajo "Guardar Figurita" ¡y listo!
-              </p>
-              <p className="text-neutral-400 leading-relaxed pl-3 font-semibold text-neon-cyan">
-                ¡Ahora, cada vez que toques el Widget, tu iPhone te pedirá que escribas/dictes marcas (como "ARG 10 ESP 4") y las agregará al instante de forma automática!
-              </p>
+              <div className="space-y-2">
+                <span className="text-[10px] text-neutral-500 font-mono tracking-wider block">Paso A: Copiá tu enlace de la App</span>
+                <div className="flex items-center gap-2">
+                  <input 
+                    type="text" 
+                    readOnly
+                    value={getBaseUrl()}
+                    className="bg-neutral-950 border border-neutral-900 rounded-xl px-3 py-1.5 text-[10px] font-mono text-neutral-500 flex-1 overflow-x-auto focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={copyShortcutUrl}
+                    className="bg-neutral-800 hover:bg-neutral-700 text-neutral-300 p-2 rounded-xl cursor-pointer transition-colors"
+                  >
+                    {copiedLink ? <Check size={14} /> : <Copy size={14} />}
+                  </button>
+                </div>
+                {copiedLink && (
+                  <span className="text-[10px] text-emerald-500/80 font-mono block">¡Enlace de la App copiado!</span>
+                )}
+              </div>
+
+              <div className="space-y-1.5 pl-2 text-neutral-400">
+                <p>1. Creá un atajo con una sola acción: <strong className="text-neutral-200">Abrir URL</strong>.</p>
+                <p>2. Pegá el enlace anterior y configuralo para <strong className="text-neon-cyan font-mono">[Preguntar cada vez]</strong> al final.</p>
+              </div>
             </div>
           </motion.div>
         )}

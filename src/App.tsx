@@ -14,6 +14,7 @@ import Missing from './components/Missing';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
 import QuickAdd from './components/QuickAdd';
+import QuickAddModal from './components/QuickAddModal';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
@@ -43,6 +44,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts' | 'quickadd'>('album');
+  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
   
   // Dual storing: Synchronously load states right at boot so they are instantly ready offline
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(() => {
@@ -177,7 +179,10 @@ export default function App() {
     const action = urlParams.get('action');
     const addQuery = urlParams.get('add');
     
-    if (action === 'quickadd' || addQuery) {
+    if (action === 'quickadd') {
+      setShowQuickAddModal(true);
+      setActiveTab('album');
+    } else if (addQuery) {
       setActiveTab('quickadd');
     } else if (action === 'scanner') {
       setActiveTab('scanner');
@@ -186,7 +191,11 @@ export default function App() {
     const handleShiftTab = (e: Event) => {
       const detail = (e as CustomEvent).detail;
       if (detail) {
-        setActiveTab(detail as any);
+        if (detail === 'quickadd-modal') {
+          setShowQuickAddModal(true);
+        } else {
+          setActiveTab(detail as any);
+        }
       }
     };
     window.addEventListener('shift-tab', handleShiftTab);
@@ -600,6 +609,15 @@ export default function App() {
         </button>
 
       </nav>
+
+      <QuickAddModal
+        isOpen={showQuickAddModal}
+        onClose={() => setShowQuickAddModal(false)}
+        ownedStickers={ownedStickers}
+        repeatedStickers={repeatedStickers}
+        onAddStickers={handleQuickAddManual}
+        isOnline={isOnline}
+      />
     </div>
   );
 }
