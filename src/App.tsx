@@ -13,8 +13,6 @@ import { BookOpen, ScanLine, FileQuestion, Sparkles, CopyPlus, ArrowRightLeft, H
 import Missing from './components/Missing';
 import Repeated from './components/Repeated';
 import Exchange from './components/Exchange';
-import QuickAdd from './components/QuickAdd';
-import QuickAddModal from './components/QuickAddModal';
 import { db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, setDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 
@@ -43,8 +41,7 @@ const deserializeRepeated = (list: string[]): Record<string, number> => {
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts' | 'quickadd'>('album');
-  const [showQuickAddModal, setShowQuickAddModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'album' | 'missing' | 'repeated' | 'exchange' | 'scanner' | 'sorter' | 'activities' | 'charts'>('album');
   
   // Dual storing: Synchronously load states right at boot so they are instantly ready offline
   const [ownedStickers, setOwnedStickers] = useState<Set<string>>(() => {
@@ -172,118 +169,6 @@ export default function App() {
 
     return () => unsubscribe();
   }, []);
-
-  // Check URL parameters for shortcut/PWA actions on startup
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const action = urlParams.get('action');
-    const addQuery = urlParams.get('add');
-    
-    if (action === 'quickadd') {
-      setShowQuickAddModal(true);
-      setActiveTab('album');
-    } else if (addQuery) {
-      setActiveTab('quickadd');
-    } else if (action === 'scanner') {
-      setActiveTab('scanner');
-    }
-
-    const handleShiftTab = (e: Event) => {
-      const detail = (e as CustomEvent).detail;
-      if (detail) {
-        if (detail === 'quickadd-modal') {
-          setShowQuickAddModal(true);
-        } else {
-          setActiveTab(detail as any);
-        }
-      }
-    };
-    window.addEventListener('shift-tab', handleShiftTab);
-    return () => window.removeEventListener('shift-tab', handleShiftTab);
-  }, []);
-
-  // Process auto-add parameter strictly AFTER database is loaded
-  const [hasProcessedAutoAdd, setHasProcessedAutoAdd] = useState(false);
-  const [autoAddStatus, setAutoAddStatus] = useState<{
-    added: string[];
-    repeated: string[];
-    invalid: string[];
-  } | null>(null);
-
-  useEffect(() => {
-    if (isLoaded && !hasProcessedAutoAdd) {
-      const urlParams = new URLSearchParams(window.location.search);
-      const addQuery = urlParams.get('add');
-      if (addQuery) {
-        setHasProcessedAutoAdd(true);
-        // Process the codes instantly
-        import('./data/stickers').then(({ parseCodesFromString }) => {
-          const parsed = parseCodesFromString(addQuery);
-          if (parsed.length > 0) {
-            let nextOwned = new Set<string>(ownedStickers);
-            let nextRepeated = { ...repeatedStickers };
-            let addedList: string[] = [];
-            let repeatedList: string[] = [];
-            
-            parsed.forEach(({ foundPrefix, num }) => {
-              const id = foundPrefix === 'FWC' && num === 0 ? '00' : `${foundPrefix}-${num}`;
-              
-              if (!nextOwned.has(id)) {
-                nextOwned.add(id);
-                addedList.push(id);
-              } else {
-                nextRepeated[id] = (nextRepeated[id] || 0) + 1;
-                repeatedList.push(id);
-              }
-            });
-            
-            const addedText = addedList.length > 0 ? `Álbum: ${addedList.join(', ')}` : '';
-            const repeatedText = repeatedList.length > 0 ? `Repetidas: ${repeatedList.join(', ')}` : '';
-            const joiner = addedText && repeatedText ? ' | ' : '';
-            const actionText = `[Atajo iOS] Se cargaron figuritas. ${addedText}${joiner}${repeatedText}`;
-            
-            addActivity(actionText).then((nextAct) => {
-              setOwnedStickers(nextOwned);
-              setRepeatedStickers(nextRepeated);
-              persistToDB(nextOwned, nextRepeated, nextAct);
-              setAutoAddStatus({
-                added: addedList,
-                repeated: repeatedList,
-                invalid: []
-              });
-            });
-          } else {
-            setAutoAddStatus({
-              added: [],
-              repeated: [],
-              invalid: [addQuery]
-            });
-          }
-        });
-      }
-    }
-  }, [isLoaded, hasProcessedAutoAdd, ownedStickers, repeatedStickers]);
-
-  const handleQuickAddManual = async (stickersList: { id: string; count: number }[], sourceText: string) => {
-    let nextOwned = new Set<string>(ownedStickers);
-    let nextRepeated = { ...repeatedStickers };
-    
-    stickersList.forEach(({ id, count }) => {
-      if (!nextOwned.has(id)) {
-        nextOwned.add(id);
-        if (count > 1) {
-          nextRepeated[id] = (nextRepeated[id] || 0) + (count - 1);
-        }
-      } else {
-        nextRepeated[id] = (nextRepeated[id] || 0) + count;
-      }
-    });
-
-    setOwnedStickers(nextOwned);
-    setRepeatedStickers(nextRepeated);
-    const nextActivities = await addActivity(sourceText);
-    await persistToDB(nextOwned, nextRepeated, nextActivities);
-  };
 
   const persistToDB = async (newOwned: Set<string>, newRepeated: Record<string, number>, newActivities: ActivityLog[] = activities) => {
     // Write and back up locally first to guarantee zero-latency offline storage
@@ -508,16 +393,6 @@ export default function App() {
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-1 duration-300">
-            <div className={activeTab === 'quickadd' ? 'block' : 'hidden'}>
-              <QuickAdd 
-                ownedStickers={ownedStickers} 
-                repeatedStickers={repeatedStickers} 
-                onAddStickers={handleQuickAddManual}
-                autoAddStatus={autoAddStatus}
-                onBackToAlbum={() => setActiveTab('album')}
-                isOnline={isOnline}
-              />
-            </div>
             <div className={activeTab === 'album' ? 'block' : 'hidden'}>
               <Album ownedStickers={ownedStickers} repeatedStickers={repeatedStickers} toggleOwned={toggleOwned} updateRepeated={updateRepeated} isOnline={isOnline} />
             </div>
@@ -609,15 +484,6 @@ export default function App() {
         </button>
 
       </nav>
-
-      <QuickAddModal
-        isOpen={showQuickAddModal}
-        onClose={() => setShowQuickAddModal(false)}
-        ownedStickers={ownedStickers}
-        repeatedStickers={repeatedStickers}
-        onAddStickers={handleQuickAddManual}
-        isOnline={isOnline}
-      />
     </div>
   );
 }

@@ -213,38 +213,6 @@ export default function Album({ ownedStickers, repeatedStickers, toggleOwned, up
             <div>
               {/* Banner / Header Card - STRICTLY NOT STICKY AS PER USER REQUEST */}
               <div className="px-6 py-6 bg-neutral-950/70 border border-neutral-900 rounded-2xl shadow-[0_0_15px_rgba(0,243,255,0.05)] neon-glow-card mb-6">
-                
-                {/* iOS PWA Atajo Acceso Rápido Promoción */}
-                <div className="mb-5 p-3.5 rounded-xl border border-neutral-800 bg-neutral-900/40 flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs leading-relaxed relative overflow-hidden">
-                  <div className="flex items-start gap-2.5">
-                    <div className="p-1.5 rounded-lg bg-neon-cyan/10 border border-neon-cyan/20 text-neon-cyan mt-0.5">
-                      <Sparkles size={14} className="animate-pulse" />
-                    </div>
-                    <div>
-                      <span className="font-bold text-white block text-sm">⚡ Carga Figuritas al Instante (Atajos iPhone)</span>
-                      <span className="text-neutral-400 text-[11px] block mt-0.5">Agrega figuritas directamente desde tu Pantalla de Inicio usando la app Atajos o comandos de voz de Siri sin abrir la app.</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2 self-start md:self-auto">
-                    <button
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd-modal' }));
-                      }}
-                      className="px-3.5 py-2 rounded-lg bg-neon-cyan text-black font-black font-sans uppercase text-[10px] tracking-wider hover:opacity-95 select-none cursor-pointer shadow-[0_0_12px_rgba(0,243,255,0.4)] transition-all whitespace-nowrap"
-                    >
-                      ⚡ Abrir Cuadrito
-                    </button>
-                    <button
-                      onClick={() => {
-                        window.dispatchEvent(new CustomEvent('shift-tab', { detail: 'quickadd' }));
-                      }}
-                      className="px-3.5 py-2 rounded-lg bg-transparent hover:bg-neutral-800 text-neutral-300 hover:text-white border border-neutral-700 font-bold font-sans uppercase text-[10px] tracking-wider select-none cursor-pointer transition-all whitespace-nowrap"
-                    >
-                      Configurar Siri/Widget
-                    </button>
-                  </div>
-                </div>
-
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4 mb-5">
                   <div className="flex flex-col">
                     <span className="text-[9.5px] font-bold text-neutral-500 uppercase tracking-widest mb-1 font-mono">Resumen de Colección Colectiva</span>
