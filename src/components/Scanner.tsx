@@ -920,11 +920,6 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
 
                      <button
                         onClick={() => {
-                           if (scanMode === 'multiple') {
-                             if (isAlreadyOwned && !addedToAlbum && !addedToRepeated) {
-                                handleScannedInSession(result.id, result.display, true);
-                             }
-                           }
                            setResult(null);
                            setError(null);
                            setAddedToRepeated(false);
