@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Camera, RefreshCw, Check, AlertCircle, Loader2, Type as TypeIcon, CopyPlus, Trash2, Plus, Minus, ListOrdered, Trophy } from 'lucide-react';
+import { Camera, RefreshCw, Check, AlertCircle, Loader2, Type as TypeIcon, CopyPlus, Trash2, Plus, Minus, ListOrdered, Trophy, Sparkles } from 'lucide-react';
 import Tesseract from 'tesseract.js';
 import { WORLD_CUP_TEAMS, getAllStickers, parseCodesFromString } from '../data/stickers';
 
@@ -27,8 +27,11 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   const [removedFromRepeated, setRemovedFromRepeated] = useState(false);
   const [addedToAlbum, setAddedToAlbum] = useState(false);
 
-  // Manual mode state
-  const [manualMode, setManualMode] = useState<boolean>(false);
+  // Scanner Tab mode
+  const [scannerTab, setScannerTab] = useState<'ocr' | 'ai' | 'manual'>('ocr');
+  const manualMode = scannerTab === 'manual';
+  const [isAiLoading, setIsAiLoading] = useState(false);
+  const [aiResultInfo, setAiResultInfo] = useState<{ playerName?: string; teamName?: string; confidence?: number } | null>(null);
   const [manualInput, setManualInput] = useState<string>('');
 
   // Batch / Quick manual entry states
@@ -130,7 +133,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
           return;
         }
         await worker.setParameters({
-          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789- ',
+          tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-. ',
         });
         workerRef.current = worker;
       } catch (err) {
@@ -185,7 +188,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   };
 
   useEffect(() => {
-    if (isActive && !manualMode) {
+    if (isActive && scannerTab !== 'manual') {
       startCamera();
     } else {
       if (streamAction) {
@@ -198,54 +201,85 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
          streamAction.getTracks().forEach(track => track.stop());
       }
     };
-  }, [manualMode, isActive]);
-
-  const normalizeOCRText = (text: string): string => {
-    let upper = text.toUpperCase();
-    // Replace common OCR misreads followed by potential numbers
-    upper = upper.replace(/AR6(?=\s*\d)/g, 'ARG');
-    upper = upper.replace(/ABG(?=\s*\d)/g, 'ARG');
-    upper = upper.replace(/E5P(?=\s*\d)/g, 'ESP');
-    upper = upper.replace(/6ER(?=\s*\d)/g, 'GER');
-    upper = upper.replace(/5UI(?=\s*\d)/g, 'SUI');
-    upper = upper.replace(/SU1(?=\s*\d)/g, 'SUI');
-    upper = upper.replace(/P0R(?=\s*\d)/g, 'POR');
-    upper = upper.replace(/K0R(?=\s*\d)/g, 'KOR');
-    upper = upper.replace(/0AT(?=\s*\d)/g, 'QAT');
-    upper = upper.replace(/OAT(?=\s*\d)/g, 'QAT');
-    upper = upper.replace(/FW0(?=\s*\d)/g, 'FWC');
-    upper = upper.replace(/FVVC(?=\s*\d)/g, 'FWC');
-    upper = upper.replace(/FVC(?=\s*\d)/g, 'FWC');
-    upper = upper.replace(/C0D(?=\s*\d)/g, 'COD');
-    upper = upper.replace(/C0L(?=\s*\d)/g, 'COL');
-    return upper;
-  };
+  }, [scannerTab, isActive]);
 
   const parseCodeString = (input: string, strict: boolean = false) => {
-    // Normalize OCR text first
-    const normalizedInput = normalizeOCRText(input);
+    const upperInput = input.toUpperCase().trim();
     
-    // Attempt standard robust regex parsing first
-    const results = parseCodesFromString(normalizedInput);
-    if (results.length > 0) {
-      return results[0];
+    // Check for "00" first (and its common OCR misread variants like OO, 0O, O0)
+    if (/(^|[^A-Z0-9])(00|OO|O0|0O)([^A-Z0-9]|$)/.test(upperInput)) {
+      return { foundPrefix: "00", num: 0 };
     }
-    
-    // Robust fallback for tighter word boundaries (such as ARG10, AR610, etc.)
-    const cleanInput = normalizedInput.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
-    const words = cleanInput.split(/\s+/);
-    const lettersToNums = (str: string) => str.replace(/O/g, '0').replace(/Q/g, '0').replace(/I/g, '1').replace(/L/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
-    
-    for (const word of words) {
-      for (const team of WORLD_CUP_TEAMS) {
-        if (word.startsWith(team.prefix)) {
-          const numPart = word.substring(team.prefix.length);
-          const cleanNum = lettersToNums(numPart).replace(/[^0-9]/g, '');
+
+    if (upperInput.length < 2) return { foundPrefix: "", num: 0 };
+
+    const cleanNumberString = (str: string) => {
+      return str
+        .replace(/O/g, '0')
+        .replace(/Q/g, '0')
+        .replace(/I/g, '1')
+        .replace(/L/g, '1')
+        .replace(/S/g, '5')
+        .replace(/B/g, '8')
+        .replace(/Z/g, '2')
+        .replace(/[^0-9]/g, '');
+    };
+
+    // To handle cases where letters in the prefix are misread as digits (e.g., 'AR6' for 'ARG', '5UI' for 'SUI')
+    const numsToLetters = (str: string) => str
+      .replace(/0/g, 'O')
+      .replace(/1/g, 'I')
+      .replace(/5/g, 'S')
+      .replace(/8/g, 'B')
+      .replace(/2/g, 'Z')
+      .replace(/6/g, 'G');
+
+    // Create a copy where common digit-to-letter OCR errors are fixed (e.g., "AR6 10" -> "ARG 10")
+    const normalizedText = numsToLetters(upperInput);
+
+    for (const team of WORLD_CUP_TEAMS) {
+      const p = team.prefix;
+      
+      // Look for the prefix followed by optional dash/dot/space and 1 or 2 digits/misread digits.
+      const regexes = [
+        new RegExp(`(?:\\b|[^A-Z])(${p})\\s*[-_\\.]?\\s*([0-9OISBLZ]{1,2})(?:\\b|[^0-9A-Z])`, 'i'),
+        new RegExp(`(?:\\b|[^A-Z])(${p})\\s*[-_\\.]?\\s*([0-9OISBLZ]{1,2})$`, 'i'),
+        new RegExp(`^(${p})\\s*[-_\\.]?\\s*([0-9OISBLZ]{1,2})`, 'i')
+      ];
+
+      for (const regex of regexes) {
+        let match = regex.exec(upperInput) || regex.exec(normalizedText);
+        
+        if (match) {
+          const rawNum = match[2];
+          const cleanNum = cleanNumberString(rawNum);
           if (cleanNum.length > 0) {
             const num = parseInt(cleanNum, 10);
             const start = team.startNumber ?? 1;
             if (num >= start && num <= team.count) {
               return { foundPrefix: team.prefix, num };
+            }
+          }
+        }
+      }
+    }
+
+    // Secondary fallback: simpler substring/starts-with check if strict is false
+    if (!strict) {
+      for (const team of WORLD_CUP_TEAMS) {
+        const p = team.prefix;
+        const index = normalizedText.indexOf(p);
+        if (index !== -1) {
+          const after = normalizedText.substring(index + p.length).trim();
+          const numMatch = /^[-_\.]?\s*([0-9OISBLZ]{1,2})/.exec(after);
+          if (numMatch) {
+            const cleanNum = cleanNumberString(numMatch[1]);
+            if (cleanNum.length > 0) {
+              const num = parseInt(cleanNum, 10);
+              const start = team.startNumber ?? 1;
+              if (num >= start && num <= team.count) {
+                return { foundPrefix: team.prefix, num };
+              }
             }
           }
         }
@@ -307,8 +341,8 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     }
   };
 
-    const captureAndAnalyze = useCallback(async () => {
-    if (!videoRef.current || !canvasRef.current || isScanningRef.current || result || manualMode || !workerRef.current || isSessionFinished) return;
+  const captureAndAnalyze = useCallback(async () => {
+    if (!videoRef.current || !canvasRef.current || isScanningRef.current || result || scannerTab !== 'ocr' || !workerRef.current || isSessionFinished) return;
     if (videoRef.current.readyState < 2) return;
 
     isScanningRef.current = true;
@@ -320,24 +354,61 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     const context = canvas.getContext('2d', { willReadFrequently: true });
     
     if (context) {
-      // Crop a generous center region to guarantee the code is captured regardless of device scaling
-      const cropWidth = video.videoWidth * 0.75;
-      const cropHeight = video.videoHeight * 0.40;
-      const cropX = (video.videoWidth - cropWidth) / 2;
-      const cropY = (video.videoHeight - cropHeight) / 2;
+      const frameAspect = 3.5;
+      let frameWidth, frameHeight;
       
-      // Maintain native high resolution of the crop on the canvas for pixel-perfect characters
+      frameWidth = video.videoWidth * 0.75;
+      frameHeight = frameWidth / frameAspect;
+
+      const startX = (video.videoWidth - frameWidth) / 2;
+      const startY = (video.videoHeight - frameHeight) / 2;
+      
+      const cropWidth = frameWidth;
+      const cropHeight = frameHeight;
+      const cropX = startX;
+      const cropY = startY;
+      
       canvas.width = cropWidth;
       canvas.height = cropHeight;
-      
-      // Convert canvas context to high-contrast grayscale to remove colored background noise and shadows
-      try {
-        context.filter = 'grayscale(1) contrast(1.6) brightness(1.05)';
-      } catch (e) {
-        // Safe fallback if context.filter is unsupported
-      }
-      
       context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      
+      // Pre-processing of canvas image to optimize Tesseract speed and accuracy
+      try {
+        const imageData = context.getImageData(0, 0, cropWidth, cropHeight);
+        const data = imageData.data;
+        let min = 255;
+        let max = 0;
+        
+        // Find min and max luminance for contrast stretching
+        const len = data.length;
+        const lums = new Uint8Array(len / 4);
+        for (let i = 0, j = 0; i < len; i += 4, j++) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const v = Math.round(0.299 * r + 0.587 * g + 0.114 * b);
+          lums[j] = v;
+          if (v < min) min = v;
+          if (v > max) max = v;
+        }
+        
+        // Stretch contrast & threshold to make characters extremely sharp and high-contrast
+        const range = max - min || 1;
+        for (let i = 0, j = 0; i < len; i += 4, j++) {
+          let v = Math.round(((lums[j] - min) / range) * 255);
+          if (v < 90) v = 0;
+          else if (v > 170) v = 255;
+          else {
+            v = Math.round((v - 90) / 80 * 255);
+          }
+          data[i] = v;
+          data[i + 1] = v;
+          data[i + 2] = v;
+        }
+        context.putImageData(imageData, 0, 0);
+      } catch (e) {
+        console.warn("Could not preprocess image for OCR:", e);
+      }
       
       try {
         const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -345,88 +416,125 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         const text = ret.data.text.trim();
         const conf = Math.round(ret.data.confidence ?? 0);
         
-        if (text.length >= 2 && conf > 25) {
+        if (text.length >= 2 && conf > 35) {
            const { foundPrefix, num } = parseCodeString(text, false);
 
            if (foundPrefix === '00' && num === 0) {
                const resultId = '00';
                const isOwned = ownedStickers.has(resultId);
+               if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
                
-               if (scanMode === 'multiple') {
-                 const lastScannedTime = recentlyScannedRef.current[resultId] || 0;
-                 const now = Date.now();
-                 if (now - lastScannedTime >= 2500) {
-                   if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
-                   toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde el escáner (Lote).`);
-                   handleScannedInSession(resultId, '00', true);
-                 }
-               } else {
-                 if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
-                 setResult({ id: resultId, display: '00' });
-                 setError(null);
-                 setAddedToRepeated(false);
-                 setRemovedFromRepeated(false);
-                 setAddedToAlbum(false);
-               }
+               setResult({ id: resultId, display: '00' });
+               setError(null);
+               setAddedToRepeated(false);
+               setRemovedFromRepeated(false);
+               setAddedToAlbum(false);
            } else if (foundPrefix) {
              const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);          
              const start = validTeam?.startNumber ?? 1;
              if (validTeam && num >= start && num <= validTeam.count) {
-                    const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`;
-                    const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`;
-                    
-                    const isOwned = ownedStickers.has(resultId);
+                   const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`;
+                   const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`;
+                   const isOwned = ownedStickers.has(resultId);
+                   if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
 
-                    if (scanMode === 'multiple') {
-                      const lastScannedTime = recentlyScannedRef.current[resultId] || 0;
-                      const now = Date.now();
-                      if (now - lastScannedTime >= 2500) {
-                        if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
-                        if (!isOwned) {
-                          toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde el escáner (Lote).`);
-                        } else if (updateRepeated) {
-                          const currentRep = repeatedStickers ? (repeatedStickers[resultId] || 0) : 0;
-                          updateRepeated(resultId, 1, `Agregué una repetida de la figurita ${resultId} desde el escáner (Lote) (Total: ${currentRep + 1}).`);
-                        }
-                        handleScannedInSession(resultId, display, true);
-                      }
-                    } else {
-                      if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
-                      setResult({ id: resultId, display: display });
-                      setError(null);
-                      setAddedToRepeated(false);
-                      setRemovedFromRepeated(false);
-                      setAddedToAlbum(false);
-                    }
-                }
-            }
+                   setResult({ id: resultId, display: display });
+                   setError(null);
+                   setAddedToRepeated(false);
+                   setRemovedFromRepeated(false);
+                   setAddedToAlbum(false);
+               }
+           }
         }
-      } catch (err) {
+      } catch (err: any) {
         console.error("OCR Error: ", err);
       }
     }
     
     setIsScanning(false);
     isScanningRef.current = false;
-  }, [result, manualMode, scanMode, isSessionFinished, ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity]);
+  }, [result, scannerTab, scanMode, isSessionFinished, ownedStickers, toggleOwned, updateRepeated, repeatedStickers, addActivity, handleScannedInSession]);
 
   useEffect(() => {
     let active = true;
     const scanLoop = async () => {
-      if (isActive && !manualMode && !result && hasPermission && !isScanningRef.current && workerRef.current && !isSessionFinished) {
+      if (isActive && scannerTab === 'ocr' && !result && hasPermission && !isScanningRef.current && workerRef.current && !isSessionFinished) {
         await captureAndAnalyze();
       }
       if (active) {
-        setTimeout(scanLoop, 300);
+        setTimeout(scanLoop, 150);
       }
     };
-    if (isActive && !manualMode && !result && hasPermission && !isSessionFinished) {
+    if (isActive && scannerTab === 'ocr' && !result && hasPermission && !isSessionFinished) {
       scanLoop();
     }
     return () => {
       active = false;
     };
-  }, [manualMode, result, hasPermission, captureAndAnalyze, isSessionFinished, isActive]);
+  }, [scannerTab, result, hasPermission, captureAndAnalyze, isSessionFinished, isActive]);
+
+  const handleAIScan = async () => {
+    if (!videoRef.current || !canvasRef.current || isAiLoading) return;
+    setIsAiLoading(true);
+    setError(null);
+    setAiResultInfo(null);
+
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      const context = canvas.getContext('2d');
+      if (!context) throw new Error("No se pudo inicializar el canvas de captura.");
+
+      // Capture frame
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+
+      const response = await fetch('/api/classify-sticker', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ image: dataUrl }),
+      });
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.error || errData.details || "Error en el servidor al clasificar la figurita.");
+      }
+
+      const data = await response.json();
+      if (data.id) {
+        playBeep();
+        setFlashSuccess(true);
+        setTimeout(() => setFlashSuccess(false), 250);
+
+        setResult({
+          id: data.id,
+          display: data.id.replace('-', ' ')
+        });
+        setAiResultInfo({
+          playerName: data.playerName,
+          teamName: data.teamName,
+          confidence: data.confidence
+        });
+
+        if (addActivity) {
+          const isOwned = ownedStickers.has(data.id);
+          addActivity(`Escaneé por IA la figurita ${data.id} (${data.playerName || 'Detalle no disponible'}) y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+        }
+      } else {
+        throw new Error("No se pudo identificar ninguna figurita válida en la imagen. Intenta de nuevo con mejor iluminación.");
+      }
+    } catch (err: any) {
+      console.error("AI Recognition Error:", err);
+      setError(err.message || "Error al procesar la imagen con IA. Intenta de nuevo.");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
 
   const handleMarkAsOwned = () => {
     if (result) {
@@ -725,25 +833,31 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
         
         <div className="flex border-b border-neutral-900 bg-neutral-900/30">
           <button 
-            onClick={() => setManualMode(false)}
-            className={`flex-1 py-4.5 font-display uppercase tracking-wider text-xs transition-all cursor-pointer ${!manualMode ? 'bg-neutral-950/90 text-neon-cyan font-black border-b-2 border-neon-cyan text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
+            onClick={() => {
+              setScannerTab('ocr');
+              setResult(null);
+              setError(null);
+              setAiResultInfo(null);
+            }}
+            className={`flex-1 py-4 font-display uppercase tracking-wider text-[10px] sm:text-xs transition-all cursor-pointer text-center ${scannerTab === 'ocr' ? 'bg-neutral-950/90 text-neon-cyan font-black border-b-2 border-neon-cyan text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
             Escáner OCR
           </button>
           <button 
             onClick={() => {
-              setManualMode(true);
+              setScannerTab('manual');
               setResult(null);
               setError(null);
+              setAiResultInfo(null);
             }}
-            className={`flex-1 py-4.5 font-display uppercase tracking-wider text-xs transition-all cursor-pointer ${manualMode ? 'bg-neutral-950/90 text-neon-cyan font-black border-b-2 border-neon-cyan text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
+            className={`flex-1 py-4 font-display uppercase tracking-wider text-[10px] sm:text-xs transition-all cursor-pointer text-center ${scannerTab === 'manual' ? 'bg-neutral-950/90 text-neon-cyan font-black border-b-2 border-neon-cyan text-neon-cyan-glow' : 'text-neutral-500 hover:text-neutral-300'}`}
           >
             Manual
           </button>
         </div>
 
         {/* Scan mode selector */}
-        {!result && (
+        {!result && scannerTab === 'ocr' && (
           <div className="flex bg-neutral-950 p-1 border-b border-neutral-900 gap-1">
             <button
               type="button"
@@ -770,7 +884,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
           </div>
         )}
 
-        {!manualMode ? (
+        {scannerTab !== 'manual' ? (
           <>
             <div className="relative bg-slate-950 aspect-[3/4] sm:aspect-square flex flex-col items-center justify-center overflow-hidden">
               
@@ -793,23 +907,42 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                 playsInline 
                 className={`w-full h-full object-cover transition-opacity duration-300 ${result ? 'opacity-30 grayscale' : 'opacity-100'}`}
               />
-                       {!result && (
+              <canvas ref={canvasRef} className="hidden" />
+
+              {!result && scannerTab === 'ocr' && (
                 <div className="absolute inset-0 pointer-events-none p-8 flex flex-col items-center justify-center">
-                   <div className={`w-52 h-16 sm:w-64 sm:h-20 border-2 ${isScanning ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-slate-500/50'} relative shadow-[0_0_0_4000px_rgba(15,23,42,0.85)] transition-all duration-500 rounded-lg`}>
-                       <div className="absolute -top-[1.5px] -left-[1.5px] w-6 h-6 border-t-[3px] border-l-[3px] border-amber-400 rounded-tl"></div>
-                       <div className="absolute -top-[1.5px] -right-[1.5px] w-6 h-6 border-t-[3px] border-r-[3px] border-amber-400 rounded-tr"></div>
-                       <div className="absolute -bottom-[1.5px] -left-[1.5px] w-6 h-6 border-b-[3px] border-l-[3px] border-amber-400 rounded-bl"></div>
-                       <div className="absolute -bottom-[1.5px] -right-[1.5px] w-6 h-6 border-b-[3px] border-r-[3px] border-amber-400 rounded-br"></div>
+                   <div className={`w-64 h-20 sm:w-80 sm:h-24 border-2 ${isScanning ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-slate-500/50'} relative shadow-[0_0_0_4000px_rgba(15,23,42,0.85)] transition-all duration-500 rounded-lg`}>
+                       <div className="absolute -top-[1.5px] -left-[1.5px] w-6 h-6 border-t-[3px] border-l-[3px] border-amber-450 rounded-tl"></div>
+                       <div className="absolute -top-[1.5px] -right-[1.5px] w-6 h-6 border-t-[3px] border-r-[3px] border-amber-450 rounded-tr"></div>
+                       <div className="absolute -bottom-[1.5px] -left-[1.5px] w-6 h-6 border-b-[3px] border-l-[3px] border-amber-450 rounded-bl"></div>
+                       <div className="absolute -bottom-[1.5px] -right-[1.5px] w-6 h-6 border-b-[3px] border-r-[3px] border-amber-450 rounded-br"></div>
                        
                        <div className="absolute inset-1.5 border border-amber-500/10 bg-amber-400/5 flex items-center justify-center pointer-events-none rounded">
-                          <span className="text-[9px] text-amber-300/80 font-mono uppercase tracking-[1.5px] text-center leading-tight px-4 font-bold select-none">
+                          <span className="text-[9px] text-amber-300/60 font-mono uppercase tracking-[1.5px] text-center leading-tight px-4 font-bold select-none">
                              Enfoca el código del cromo
                           </span>
                        </div>
 
                        {isScanning && (
-                             <div className="absolute inset-0 border border-amber-400 animate-ping opacity-15"></div>
+                            <div className="absolute inset-0 border border-amber-405 animate-ping opacity-15"></div>
                        )}
+                   </div>
+                </div>
+              )}
+
+              {!result && false && (
+                <div className="absolute inset-0 pointer-events-none p-8 flex flex-col items-center justify-center">
+                   <div className="w-56 h-72 sm:w-64 sm:h-80 border-2 border-neon-cyan/50 relative shadow-[0_0_0_4000px_rgba(15,23,42,0.85)] rounded-2xl">
+                       <div className="absolute -top-[1.5px] -left-[1.5px] w-8 h-8 border-t-[3px] border-l-[3px] border-neon-cyan rounded-tl-2xl"></div>
+                       <div className="absolute -top-[1.5px] -right-[1.5px] w-8 h-8 border-t-[3px] border-r-[3px] border-neon-cyan rounded-tr-2xl"></div>
+                       <div className="absolute -bottom-[1.5px] -left-[1.5px] w-8 h-8 border-b-[3px] border-l-[3px] border-neon-cyan rounded-bl-2xl"></div>
+                       <div className="absolute -bottom-[1.5px] -right-[1.5px] w-8 h-8 border-b-[3px] border-r-[3px] border-neon-cyan rounded-br-2xl"></div>
+                       
+                       <div className="absolute inset-2 border border-neon-cyan/10 bg-neon-cyan/5 flex items-center justify-center pointer-events-none rounded-xl">
+                          <span className="text-[9px] text-neon-cyan/80 font-mono uppercase tracking-[1.5px] text-center leading-relaxed px-4 font-bold select-none">
+                             Encuadra la figurita completa
+                          </span>
+                       </div>
                    </div>
                 </div>
               )}
@@ -836,7 +969,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               {!result && (
                 <div className="flex flex-col gap-4">
                   {zoomCaps && (
-                    <div className="mb-4 bg-neutral-900/50 p-3 rounded-2xl border border-neutral-900">
+                    <div className="mb-4">
                       <div className="flex justify-between items-center text-[9px] font-mono text-neutral-500 mb-2 uppercase tracking-widest font-bold">
                         <span>Zoom de Cámara</span>
                         <span className="text-neon-cyan font-extrabold text-neon-cyan-glow">{zoom.toFixed(1)}x</span>
@@ -850,38 +983,6 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         onChange={handleZoomChange}
                         className="w-full accent-neon-cyan h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
                       />
-                      
-                      {/* Quick Zoom presets for easy 1-handed tapping */}
-                      <div className="flex gap-2 mt-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const targetZoom = zoomCaps.min;
-                            setZoom(targetZoom);
-                            if (streamAction) {
-                              const track = streamAction.getVideoTracks()[0];
-                              track.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(err => console.error(err));
-                            }
-                          }}
-                          className={`flex-1 py-1.5 text-[10px] font-display uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${zoom === zoomCaps.min ? 'bg-neon-cyan text-black font-black border-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.25)]' : 'bg-neutral-950 text-neutral-400 border-neutral-850 hover:text-white'}`}
-                        >
-                          Zoom 1x
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const targetZoom = Math.min(2.0, zoomCaps.max);
-                            setZoom(targetZoom);
-                            if (streamAction) {
-                              const track = streamAction.getVideoTracks()[0];
-                              track.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(err => console.error(err));
-                            }
-                          }}
-                          className={`flex-1 py-1.5 text-[10px] font-display uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${zoom === Math.min(2.0, zoomCaps.max) ? 'bg-neon-cyan text-black font-black border-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.25)]' : 'bg-neutral-950 text-neutral-400 border-neutral-850 hover:text-white'}`}
-                        >
-                          Zoom 2x
-                        </button>
-                      </div>
                     </div>
                   )}
 
@@ -918,17 +1019,41 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               {result && (
                 <div className="animate-in slide-in-from-bottom-2 duration-350 w-full bg-neutral-950 border border-neutral-900 p-6 rounded-2xl shadow-[0_0_15px_rgba(0,0,0,0.5)]">
                   <div className="text-center mb-6">
-                     <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest font-mono">Código Detectado</span>
+                     <span className="text-[9px] font-bold text-neutral-500 uppercase tracking-widest font-mono">
+                       {aiResultInfo ? 'Reconocido por IA' : 'Código Detectado'}
+                     </span>
                      <h3 className="text-5xl font-display font-black text-white my-2.5 tracking-wide text-neon-cyan-glow">{result.display}</h3>
                      
-                     {isAlreadyOwned ? (
-                        <div className="inline-flex items-center gap-1.5 text-neon-cyan font-display uppercase tracking-widest bg-neon-cyan/5 text-[10px] py-1 px-3.5 border border-neon-cyan/25 rounded-lg font-black text-neon-cyan-glow shadow-[0_0_8px_rgba(0,243,255,0.2)]">
-                           <Check size={13} strokeWidth={4} /> ¡Ya la tienes!
-                        </div>
-                     ) : (
-                        <div className="inline-flex items-center gap-1.5 text-neon-pink font-display uppercase tracking-widest bg-neon-pink/5 border border-neon-pink/25 text-[10px] py-1 px-3.5 rounded-lg font-black text-neon-pink-glow shadow-[0_0_8px_rgba(255,0,127,0.2)]">
-                           <AlertCircle size={13} strokeWidth={4} /> Te falta
-                        </div>
+                     <div className="mb-4">
+                       {isAlreadyOwned ? (
+                          <div className="inline-flex items-center gap-1.5 text-neon-cyan font-display uppercase tracking-widest bg-neon-cyan/5 text-[10px] py-1 px-3.5 border border-neon-cyan/25 rounded-lg font-black text-neon-cyan-glow shadow-[0_0_8px_rgba(0,243,255,0.2)]">
+                             <Check size={13} strokeWidth={4} /> ¡Ya la tienes!
+                          </div>
+                       ) : (
+                          <div className="inline-flex items-center gap-1.5 text-neon-pink font-display uppercase tracking-widest bg-neon-pink/5 border border-neon-pink/25 text-[10px] py-1 px-3.5 rounded-lg font-black text-neon-pink-glow shadow-[0_0_8px_rgba(255,0,127,0.2)]">
+                             <AlertCircle size={13} strokeWidth={4} /> Te falta
+                          </div>
+                       )}
+                     </div>
+
+                     {aiResultInfo && (
+                       <div className="mt-3 text-center text-xs text-neutral-400 bg-neutral-900/50 border border-neutral-850 p-3.5 rounded-xl space-y-1 animate-in fade-in duration-200">
+                         {aiResultInfo.playerName && (
+                           <p className="font-sans">
+                             <span className="text-neutral-500">Jugador/Ítem:</span> <strong className="text-white font-semibold">{aiResultInfo.playerName}</strong>
+                           </p>
+                         )}
+                         {aiResultInfo.teamName && (
+                           <p className="font-sans">
+                             <span className="text-neutral-500">Equipo:</span> <strong className="text-neutral-350">{aiResultInfo.teamName}</strong>
+                           </p>
+                         )}
+                         {aiResultInfo.confidence !== undefined && (
+                           <p className="font-sans text-[10px] text-neutral-500">
+                             Precisión de IA: <span className="font-mono text-neon-cyan">{Math.round(aiResultInfo.confidence * 100)}%</span>
+                           </p>
+                         )}
+                       </div>
                      )}
                   </div>
 
@@ -981,6 +1106,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                            setAddedToRepeated(false);
                            setRemovedFromRepeated(false);
                            setAddedToAlbum(false);
+                           setAiResultInfo(null);
                         }}
                         className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl font-display text-xs uppercase tracking-widest transition-all bg-neutral-900 border border-neutral-800 text-neutral-400 hover:text-white hover:bg-neutral-850 cursor-pointer active:scale-95 font-bold"
                      >
@@ -989,7 +1115,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                   </div>
                 </div>
               )}
-              {result && scanMode === 'multiple' && (
+              {result && scanMode === 'multiple' && scannerTab === 'ocr' && (
                 <div className="mt-4">
                   {renderSessionListWidget()}
                 </div>
