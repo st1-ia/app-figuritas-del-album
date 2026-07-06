@@ -201,55 +201,31 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
   }, [manualMode, isActive]);
 
   const parseCodeString = (input: string, strict: boolean = false) => {
-    const upperInput = input.toUpperCase().replace(/[^A-Z0-9\s\-_]/g, '');
-    const noSpaces = upperInput.replace(/\s+/g, '');
+    // Attempt standard robust regex parsing first
+    const results = parseCodesFromString(input);
+    if (results.length > 0) {
+      return results[0];
+    }
     
-    if (/(^|[^A-Z0-9])(00|OO|O0|0O)([^A-Z0-9]|$)/.test(noSpaces)) {
-        return { foundPrefix: "00", num: 0 };
-    }
-
-    if (noSpaces.length < 3) return { foundPrefix: "", num: 0 };
-
-    if (strict && (noSpaces.length > 15 || !/[0-9OISBLZ]/.test(noSpaces))) {
-      return { foundPrefix: "", num: 0 };
-    }
-
+    // Robust fallback for tighter word boundaries (such as ARG10, AR610, etc.)
+    const cleanInput = input.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
+    const words = cleanInput.split(/\s+/);
     const lettersToNums = (str: string) => str.replace(/O/g, '0').replace(/Q/g, '0').replace(/I/g, '1').replace(/L/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
-    const numsToLetters = (str: string) => str.replace(/0/g, 'O').replace(/1/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B').replace(/2/g, 'Z');
-
-    const textAsLetters = numsToLetters(noSpaces);
-
-    for (const team of WORLD_CUP_TEAMS) {
-        const p = team.prefix;
-        const idx = textAsLetters.indexOf(p);
-        
-        if (idx !== -1) {
-            const charBefore = idx > 0 ? textAsLetters.charAt(idx - 1) : '';
-            if (/[A-Z]/.test(charBefore)) {
-                continue;
+    
+    for (const word of words) {
+      for (const team of WORLD_CUP_TEAMS) {
+        if (word.startsWith(team.prefix)) {
+          const numPart = word.substring(team.prefix.length);
+          const cleanNum = lettersToNums(numPart).replace(/[^0-9]/g, '');
+          if (cleanNum.length > 0) {
+            const num = parseInt(cleanNum, 10);
+            const start = team.startNumber ?? 1;
+            if (num >= start && num <= team.count) {
+              return { foundPrefix: team.prefix, num };
             }
-
-            const after = noSpaces.substring(idx + p.length);
-            const numMatch = /^[-_\.]?([A-Z0-9]{1,2})/.exec(after);
-            
-            if (numMatch) {
-               const cleanNum = lettersToNums(numMatch[1]).replace(/[^0-9]/g, '');
-               if (cleanNum.length > 0) {
-                    const num = parseInt(cleanNum, 10);
-                    const start = team.startNumber ?? 1;
-                    if (num >= start && num <= team.count) {
-                        if (strict) {
-                            const before = textAsLetters.substring(0, idx);
-                            const afterNum = after.substring(numMatch[0].length);
-                            if (before.length + afterNum.length > 4) {
-                                continue; 
-                            }
-                        }
-                        return { foundPrefix: team.prefix, num };
-                    }
-               }
-            }
+          }
         }
+      }
     }
     
     return { foundPrefix: "", num: 0 };
@@ -307,7 +283,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     }
   };
 
-  const captureAndAnalyze = useCallback(async () => {
+    const captureAndAnalyze = useCallback(async () => {
     if (!videoRef.current || !canvasRef.current || isScanningRef.current || result || manualMode || !workerRef.current || isSessionFinished) return;
     if (videoRef.current.readyState < 2) return;
 
@@ -320,11 +296,10 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     const context = canvas.getContext('2d', { willReadFrequently: true });
     
     if (context) {
-      const frameAspect = 3.5;
-      let frameWidth, frameHeight;
-      
-      frameWidth = video.videoWidth * 0.75;
-      frameHeight = frameWidth / frameAspect;
+      // Tighter centered frame (52% width instead of 75%) increases the relative text size on the canvas, reducing zoom requirements.
+      const frameAspect = 3.0;
+      const frameWidth = video.videoWidth * 0.52;
+      const frameHeight = frameWidth / frameAspect;
 
       const startX = (video.videoWidth - frameWidth) / 2;
       const startY = (video.videoHeight - frameHeight) / 2;
@@ -334,12 +309,21 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
       const cropX = startX;
       const cropY = startY;
       
-      canvas.width = cropWidth;
-      canvas.height = cropHeight;
-      context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
+      // Fixed 360x120 canvas resolution for fast OCR
+      canvas.width = 360;
+      canvas.height = 120;
+      
+      // Convert canvas context to high-contrast grayscale to remove colored background noise
+      try {
+        context.filter = 'grayscale(1) contrast(1.8) brightness(1.1)';
+      } catch (e) {
+        // Safe fallback if context.filter is unsupported
+      }
+      
+      context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, 360, 120);
       
       try {
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
         const ret = await workerRef.current.recognize(dataUrl);
         const text = ret.data.text.trim();
         const conf = Math.round(ret.data.confidence ?? 0);
@@ -350,39 +334,64 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
            if (foundPrefix === '00' && num === 0) {
                const resultId = '00';
                const isOwned = ownedStickers.has(resultId);
-               if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
                
-               setResult({ id: resultId, display: '00' });
-               setError(null);
-               setAddedToRepeated(false);
-               setRemovedFromRepeated(false);
-               setAddedToAlbum(false);
+               if (scanMode === 'multiple') {
+                 const lastScannedTime = recentlyScannedRef.current[resultId] || 0;
+                 const now = Date.now();
+                 if (now - lastScannedTime >= 2500) {
+                   if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+                   toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde el escáner (Lote).`);
+                   handleScannedInSession(resultId, '00', true);
+                 }
+               } else {
+                 if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+                 setResult({ id: resultId, display: '00' });
+                 setError(null);
+                 setAddedToRepeated(false);
+                 setRemovedFromRepeated(false);
+                 setAddedToAlbum(false);
+               }
            } else if (foundPrefix) {
              const validTeam = WORLD_CUP_TEAMS.find(t => t.prefix === foundPrefix);          
              const start = validTeam?.startNumber ?? 1;
              if (validTeam && num >= start && num <= validTeam.count) {
-                   const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`;
-                   const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`;
-                   
-                   const isOwned = ownedStickers.has(resultId);
-                   if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+                    const resultId = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix}-${num}`;
+                    const display = num === 0 && foundPrefix === 'FWC' ? '00' : `${validTeam.prefix} ${num}`;
+                    
+                    const isOwned = ownedStickers.has(resultId);
 
-                   setResult({ id: resultId, display: display });
-                   setError(null);
-                   setAddedToRepeated(false);
-                   setRemovedFromRepeated(false);
-                   setAddedToAlbum(false);
-               }
-           }
+                    if (scanMode === 'multiple') {
+                      const lastScannedTime = recentlyScannedRef.current[resultId] || 0;
+                      const now = Date.now();
+                      if (now - lastScannedTime >= 2500) {
+                        if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+                        if (!isOwned) {
+                          toggleOwned(resultId, true, `Agregué la figurita ${resultId} al álbum desde el escáner (Lote).`);
+                        } else if (updateRepeated) {
+                          const currentRep = repeatedStickers ? (repeatedStickers[resultId] || 0) : 0;
+                          updateRepeated(resultId, 1, `Agregué una repetida de la figurita ${resultId} desde el escáner (Lote) (Total: ${currentRep + 1}).`);
+                        }
+                        handleScannedInSession(resultId, display, true);
+                      }
+                    } else {
+                      if (addActivity) addActivity(`Escaneé la figurita ${resultId} y el resultado fue: ${isOwned ? '¡Ya la tenía!' : '¡Me faltaba!'}`);
+                      setResult({ id: resultId, display: display });
+                      setError(null);
+                      setAddedToRepeated(false);
+                      setRemovedFromRepeated(false);
+                      setAddedToAlbum(false);
+                    }
+                }
+            }
         }
-      } catch (err: any) {
+      } catch (err) {
         console.error("OCR Error: ", err);
       }
     }
     
     setIsScanning(false);
     isScanningRef.current = false;
-  }, [result, manualMode, scanMode, isSessionFinished, ownedStickers]);
+  }, [result, manualMode, scanMode, isSessionFinished, ownedStickers, repeatedStickers, toggleOwned, updateRepeated, addActivity]);
 
   useEffect(() => {
     let active = true;
@@ -767,24 +776,22 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                 playsInline 
                 className={`w-full h-full object-cover transition-opacity duration-300 ${result ? 'opacity-30 grayscale' : 'opacity-100'}`}
               />
-              <canvas ref={canvasRef} className="hidden" />
-
-              {!result && (
+                       {!result && (
                 <div className="absolute inset-0 pointer-events-none p-8 flex flex-col items-center justify-center">
-                   <div className={`w-64 h-20 sm:w-80 sm:h-24 border-2 ${isScanning ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-slate-500/50'} relative shadow-[0_0_0_4000px_rgba(15,23,42,0.85)] transition-all duration-500 rounded-lg`}>
-                       <div className="absolute -top-[1.5px] -left-[1.5px] w-6 h-6 border-t-[3px] border-l-[3px] border-amber-450 rounded-tl"></div>
-                       <div className="absolute -top-[1.5px] -right-[1.5px] w-6 h-6 border-t-[3px] border-r-[3px] border-amber-450 rounded-tr"></div>
-                       <div className="absolute -bottom-[1.5px] -left-[1.5px] w-6 h-6 border-b-[3px] border-l-[3px] border-amber-450 rounded-bl"></div>
-                       <div className="absolute -bottom-[1.5px] -right-[1.5px] w-6 h-6 border-b-[3px] border-r-[3px] border-amber-450 rounded-br"></div>
+                   <div className={`w-52 h-16 sm:w-64 sm:h-20 border-2 ${isScanning ? 'border-amber-400 shadow-[0_0_15px_rgba(251,191,36,0.4)]' : 'border-slate-500/50'} relative shadow-[0_0_0_4000px_rgba(15,23,42,0.85)] transition-all duration-500 rounded-lg`}>
+                       <div className="absolute -top-[1.5px] -left-[1.5px] w-6 h-6 border-t-[3px] border-l-[3px] border-amber-400 rounded-tl"></div>
+                       <div className="absolute -top-[1.5px] -right-[1.5px] w-6 h-6 border-t-[3px] border-r-[3px] border-amber-400 rounded-tr"></div>
+                       <div className="absolute -bottom-[1.5px] -left-[1.5px] w-6 h-6 border-b-[3px] border-l-[3px] border-amber-400 rounded-bl"></div>
+                       <div className="absolute -bottom-[1.5px] -right-[1.5px] w-6 h-6 border-b-[3px] border-r-[3px] border-amber-400 rounded-br"></div>
                        
                        <div className="absolute inset-1.5 border border-amber-500/10 bg-amber-400/5 flex items-center justify-center pointer-events-none rounded">
-                          <span className="text-[9px] text-amber-300/60 font-mono uppercase tracking-[1.5px] text-center leading-tight px-4 font-bold select-none">
+                          <span className="text-[9px] text-amber-300/80 font-mono uppercase tracking-[1.5px] text-center leading-tight px-4 font-bold select-none">
                              Enfoca el código del cromo
                           </span>
                        </div>
 
                        {isScanning && (
-                            <div className="absolute inset-0 border border-amber-405 animate-ping opacity-15"></div>
+                             <div className="absolute inset-0 border border-amber-400 animate-ping opacity-15"></div>
                        )}
                    </div>
                 </div>
@@ -812,7 +819,7 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
               {!result && (
                 <div className="flex flex-col gap-4">
                   {zoomCaps && (
-                    <div className="mb-4">
+                    <div className="mb-4 bg-neutral-900/50 p-3 rounded-2xl border border-neutral-900">
                       <div className="flex justify-between items-center text-[9px] font-mono text-neutral-500 mb-2 uppercase tracking-widest font-bold">
                         <span>Zoom de Cámara</span>
                         <span className="text-neon-cyan font-extrabold text-neon-cyan-glow">{zoom.toFixed(1)}x</span>
@@ -826,6 +833,38 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
                         onChange={handleZoomChange}
                         className="w-full accent-neon-cyan h-1.5 bg-neutral-800 rounded-lg appearance-none cursor-pointer"
                       />
+                      
+                      {/* Quick Zoom presets for easy 1-handed tapping */}
+                      <div className="flex gap-2 mt-3">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetZoom = zoomCaps.min;
+                            setZoom(targetZoom);
+                            if (streamAction) {
+                              const track = streamAction.getVideoTracks()[0];
+                              track.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(err => console.error(err));
+                            }
+                          }}
+                          className={`flex-1 py-1.5 text-[10px] font-display uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${zoom === zoomCaps.min ? 'bg-neon-cyan text-black font-black border-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.25)]' : 'bg-neutral-950 text-neutral-400 border-neutral-850 hover:text-white'}`}
+                        >
+                          Zoom 1x
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const targetZoom = Math.min(2.0, zoomCaps.max);
+                            setZoom(targetZoom);
+                            if (streamAction) {
+                              const track = streamAction.getVideoTracks()[0];
+                              track.applyConstraints({ advanced: [{ zoom: targetZoom }] }).catch(err => console.error(err));
+                            }
+                          }}
+                          className={`flex-1 py-1.5 text-[10px] font-display uppercase tracking-wider rounded-lg border transition-all cursor-pointer ${zoom === Math.min(2.0, zoomCaps.max) ? 'bg-neon-cyan text-black font-black border-neon-cyan shadow-[0_0_8px_rgba(0,243,255,0.25)]' : 'bg-neutral-950 text-neutral-400 border-neutral-850 hover:text-white'}`}
+                        >
+                          Zoom 2x
+                        </button>
+                      </div>
                     </div>
                   )}
 
