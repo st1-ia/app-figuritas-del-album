@@ -200,15 +200,39 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     };
   }, [manualMode, isActive]);
 
+  const normalizeOCRText = (text: string): string => {
+    let upper = text.toUpperCase();
+    // Replace common OCR misreads followed by potential numbers
+    upper = upper.replace(/AR6(?=\s*\d)/g, 'ARG');
+    upper = upper.replace(/ABG(?=\s*\d)/g, 'ARG');
+    upper = upper.replace(/E5P(?=\s*\d)/g, 'ESP');
+    upper = upper.replace(/6ER(?=\s*\d)/g, 'GER');
+    upper = upper.replace(/5UI(?=\s*\d)/g, 'SUI');
+    upper = upper.replace(/SU1(?=\s*\d)/g, 'SUI');
+    upper = upper.replace(/P0R(?=\s*\d)/g, 'POR');
+    upper = upper.replace(/K0R(?=\s*\d)/g, 'KOR');
+    upper = upper.replace(/0AT(?=\s*\d)/g, 'QAT');
+    upper = upper.replace(/OAT(?=\s*\d)/g, 'QAT');
+    upper = upper.replace(/FW0(?=\s*\d)/g, 'FWC');
+    upper = upper.replace(/FVVC(?=\s*\d)/g, 'FWC');
+    upper = upper.replace(/FVC(?=\s*\d)/g, 'FWC');
+    upper = upper.replace(/C0D(?=\s*\d)/g, 'COD');
+    upper = upper.replace(/C0L(?=\s*\d)/g, 'COL');
+    return upper;
+  };
+
   const parseCodeString = (input: string, strict: boolean = false) => {
+    // Normalize OCR text first
+    const normalizedInput = normalizeOCRText(input);
+    
     // Attempt standard robust regex parsing first
-    const results = parseCodesFromString(input);
+    const results = parseCodesFromString(normalizedInput);
     if (results.length > 0) {
       return results[0];
     }
     
     // Robust fallback for tighter word boundaries (such as ARG10, AR610, etc.)
-    const cleanInput = input.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
+    const cleanInput = normalizedInput.toUpperCase().replace(/[^A-Z0-9\s]/g, ' ');
     const words = cleanInput.split(/\s+/);
     const lettersToNums = (str: string) => str.replace(/O/g, '0').replace(/Q/g, '0').replace(/I/g, '1').replace(/L/g, '1').replace(/S/g, '5').replace(/B/g, '8').replace(/Z/g, '2');
     
@@ -296,39 +320,32 @@ export default function Scanner({ ownedStickers, repeatedStickers, toggleOwned, 
     const context = canvas.getContext('2d', { willReadFrequently: true });
     
     if (context) {
-      // Tighter centered frame (52% width instead of 75%) increases the relative text size on the canvas, reducing zoom requirements.
-      const frameAspect = 3.0;
-      const frameWidth = video.videoWidth * 0.52;
-      const frameHeight = frameWidth / frameAspect;
-
-      const startX = (video.videoWidth - frameWidth) / 2;
-      const startY = (video.videoHeight - frameHeight) / 2;
+      // Crop a generous center region to guarantee the code is captured regardless of device scaling
+      const cropWidth = video.videoWidth * 0.75;
+      const cropHeight = video.videoHeight * 0.40;
+      const cropX = (video.videoWidth - cropWidth) / 2;
+      const cropY = (video.videoHeight - cropHeight) / 2;
       
-      const cropWidth = frameWidth;
-      const cropHeight = frameHeight;
-      const cropX = startX;
-      const cropY = startY;
+      // Maintain native high resolution of the crop on the canvas for pixel-perfect characters
+      canvas.width = cropWidth;
+      canvas.height = cropHeight;
       
-      // Fixed 360x120 canvas resolution for fast OCR
-      canvas.width = 360;
-      canvas.height = 120;
-      
-      // Convert canvas context to high-contrast grayscale to remove colored background noise
+      // Convert canvas context to high-contrast grayscale to remove colored background noise and shadows
       try {
-        context.filter = 'grayscale(1) contrast(1.8) brightness(1.1)';
+        context.filter = 'grayscale(1) contrast(1.6) brightness(1.05)';
       } catch (e) {
         // Safe fallback if context.filter is unsupported
       }
       
-      context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, 360, 120);
+      context.drawImage(video, cropX, cropY, cropWidth, cropHeight, 0, 0, cropWidth, cropHeight);
       
       try {
-        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
         const ret = await workerRef.current.recognize(dataUrl);
         const text = ret.data.text.trim();
         const conf = Math.round(ret.data.confidence ?? 0);
         
-        if (text.length >= 2 && conf > 40) {
+        if (text.length >= 2 && conf > 25) {
            const { foundPrefix, num } = parseCodeString(text, false);
 
            if (foundPrefix === '00' && num === 0) {
